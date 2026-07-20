@@ -1,0 +1,7 @@
+reviews:
+  high_level_summary: true
+  review_status: true
+  poem: false
+  path_instructions:
+    - path: "**/*"
+      instructions: "Flag missing exception handling as HIGH. Flag raw types and unchecked casts as MEDIUM. Check for proper OOP principles."

@@ -1,0 +1,40 @@
+/* === DARK THEME  - NO WHITE ON SCROLL === */
+:root {
+  --bs-body-bg: #212529;
+}
+
+html {
+  background-color: #212529 !important;
+  min-height: 100vh;
+}
+
+body {
+  background-color: #212529 !important;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  background-color: #212529 !important;
+  min-height: 100vh;
+}
+
+/* Ensure no white space on any device */
+@media (max-width: 768px) {
+  html, body, #root {
+    min-height: 100vh;
+    height: auto;
+    background-color: #212529 !important;
+  }
+}
+
+/* Override Bootstrap's default background */
+.bg-dark {
+  background-color: #212529 !important;
+}
+
+/* Prevent any white flash during scroll */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

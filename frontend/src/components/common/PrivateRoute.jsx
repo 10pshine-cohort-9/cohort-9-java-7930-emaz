@@ -1,53 +1,39 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useState, useEffect } from "react";
-
-const getToken = () => {
-  try {
-    return localStorage.getItem("token");
-  } catch (error) {
-    console.warn("LocalStorage access denied:", error);
-    return null;
-  }
-};
-
-const isValidToken = (token) => {
-  if (!token) return false;
-  if (typeof token !== "string") return false;
-  if (token.trim().length === 0) return false;
-  return true;
-};
 
 const PrivateRoute = () => {
-  const [isValidating, setIsValidating] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
+  // Check if user is logged in (token exists) - with error handling
+  const isAuthenticated = () => {
     try {
-      const token = getToken();
-      const valid = isValidToken(token);
-      setIsAuthenticated(valid);
-
-      if (!valid && token) {
-        try {
-          localStorage.removeItem("token");
-        } catch (e) {}
-      }
+      const token = localStorage.getItem("token");
+      return token !== null && token.length > 0;
     } catch (error) {
-      setIsAuthenticated(false);
-    } finally {
-      setIsValidating(false);
+      console.warn("Authentication check failed:", error);
+      return false;
     }
-  }, []);
+  };
 
-  if (isValidating) {
-    return <div>Loading...</div>;
+  // Validate token format (basic check)
+  const isValidToken = (token) => {
+    if (!token) return false;
+    // Basic JWT format check: header.payload.signature
+    const parts = token.split(".");
+    return parts.length === 3;
+  };
+
+  const token = localStorage.getItem("token");
+  const valid = isAuthenticated() && token && isValidToken(token);
+
+  // If token is present but invalid, remove it with error reporting
+  if (!valid && token) {
+    try {
+      localStorage.removeItem("token");
+    } catch (e) {
+      console.error("Failed to remove invalid token:", e);
+    }
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
+  // If not authenticated, redirect to login
+  return valid ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default PrivateRoute;

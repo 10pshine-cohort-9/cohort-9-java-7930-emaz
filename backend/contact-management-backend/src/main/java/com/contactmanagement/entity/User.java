@@ -53,6 +53,17 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Contact> contacts = new ArrayList<>();
 
+    // Helper methods for bidirectional relationship
+    public void addContact(Contact contact) {
+        contacts.add(contact);
+        contact.setUser(this);
+    }
+
+    public void removeContact(Contact contact) {
+        contacts.remove(contact);
+        contact.setUser(null);
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

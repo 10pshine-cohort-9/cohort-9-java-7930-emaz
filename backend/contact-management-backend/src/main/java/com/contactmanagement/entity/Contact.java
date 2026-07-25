@@ -55,6 +55,27 @@ public class Contact {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Helper methods for bidirectional relationship
+    public void addEmail(ContactEmail email) {
+        emails.add(email);
+        email.setContact(this);
+    }
+
+    public void removeEmail(ContactEmail email) {
+        emails.remove(email);
+        email.setContact(null);
+    }
+
+    public void addPhone(ContactPhone phone) {
+        phones.add(phone);
+        phone.setContact(this);
+    }
+
+    public void removePhone(ContactPhone phone) {
+        phones.remove(phone);
+        phone.setContact(null);
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

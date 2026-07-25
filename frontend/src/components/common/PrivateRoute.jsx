@@ -1,39 +1,69 @@
 import { Navigate, Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 const PrivateRoute = () => {
-  // Check if user is logged in (token exists) - with error handling
-  const isAuthenticated = () => {
-    try {
-      const token = localStorage.getItem("token");
-      return token !== null && token.length > 0;
-    } catch (error) {
-      console.warn("Authentication check failed:", error);
-      return false;
-    }
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Validate token format (basic check)
-  const isValidToken = (token) => {
-    if (!token) return false;
-    // Basic JWT format check: header.payload.signature
-    const parts = token.split(".");
-    return parts.length === 3;
-  };
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Get token from localStorage with error handling
+        let token = null;
+        try {
+          token = localStorage.getItem("token");
+        } catch (storageError) {
+          console.warn("LocalStorage access failed:", storageError);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
 
-  const token = localStorage.getItem("token");
-  const valid = isAuthenticated() && token && isValidToken(token);
+        // If no token, not authenticated
+        if (!token) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
 
-  // If token is present but invalid, remove it with error reporting
-  if (!valid && token) {
-    try {
-      localStorage.removeItem("token");
-    } catch (e) {
-      console.error("Failed to remove invalid token:", e);
-    }
+        // TODO: Validate token with backend
+        // For now, check if token is not empty
+        const isValid = token.length > 0;
+
+        // If token is invalid, clear it
+        if (!isValid) {
+          try {
+            localStorage.removeItem("token");
+          } catch (e) {
+            console.error("Failed to remove invalid token:", e);
+          }
+        }
+
+        setIsAuthenticated(isValid);
+      } catch (error) {
+        console.error("Authentication check failed:", error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // Show nothing while checking authentication
+  if (isLoading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
   }
 
   // If not authenticated, redirect to login
-  return valid ? <Outlet /> : <Navigate to="/login" replace />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default PrivateRoute;

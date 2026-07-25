@@ -34,7 +34,25 @@ body {
   background-color: #212529 !important;
 }
 
-/* Prevent any white flash during scroll */
-* {
-  -webkit-tap-highlight-color: transparent;
+/* Better touch feedback and accessibility */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Preserve accessibility with theme-appropriate tap highlights */
+button,
+a,
+input[type="submit"],
+input[type="button"] {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* For dark theme support */
+@media (prefers-color-scheme: dark) {
+  button,
+  a,
+  input[type="submit"],
+  input[type="button"] {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+  }
 }

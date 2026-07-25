@@ -1,28 +1,30 @@
 package com.contactmanagement.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "contact_emails")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 public class ContactEmail {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private Long id;
 
-    @Column(nullable = false)
-    private String label;  // work, personal, other
+    private String email;
+    private String emailType;
 
-    @Column(nullable = false)
-    private String value;  // email address
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contact_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "contact_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Contact contact;
 }

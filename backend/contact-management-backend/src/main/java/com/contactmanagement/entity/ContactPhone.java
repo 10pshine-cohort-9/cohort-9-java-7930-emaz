@@ -1,28 +1,30 @@
 package com.contactmanagement.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "contact_phones")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@ToString(onlyExplicitlyIncluded = true)
 public class ContactPhone {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
+    @ToString.Include
     private Long id;
 
-    @Column(nullable = false)
-    private String label;  // work, mobile, home
+    private String phoneNumber;
+    private String phoneType;
 
-    @Column(nullable = false)
-    private String value;  // phone number
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contact_id", nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "contact_id")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Contact contact;
 }

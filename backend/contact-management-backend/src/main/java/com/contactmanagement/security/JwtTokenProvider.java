@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 
-@Component
+@Component  // ← ADD THIS
 public class JwtTokenProvider {
 
     @Value("${jwt.secret:your-256-bit-secret-key-should-be-long-enough-for-hs256-algorithm}")

@@ -1,7 +1,9 @@
 package com.contactmanagement.controller;
 
+import com.contactmanagement.dto.request.LoginRequest;
 import com.contactmanagement.dto.request.RegisterRequest;
 import com.contactmanagement.dto.response.AuthResponse;
+import com.contactmanagement.dto.response.LoginResponse;
 import com.contactmanagement.exception.DuplicateResourceException;
 import com.contactmanagement.service.AuthService;
 import jakarta.validation.Valid;
@@ -34,6 +36,24 @@ public class AuthController {
             return ResponseEntity
                     .status(HttpStatus.CONFLICT)
                     .body(AuthResponse.builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build());
+        }
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        log.info("Received login request for: {}", request.getEmailOrPhone());
+
+        try {
+            LoginResponse response = authService.login(request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            log.error("Login failed: {}", e.getMessage());
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(LoginResponse.builder()
                             .success(false)
                             .message(e.getMessage())
                             .build());

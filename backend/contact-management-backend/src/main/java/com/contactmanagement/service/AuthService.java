@@ -1,10 +1,13 @@
 package com.contactmanagement.service;
 
+import com.contactmanagement.dto.request.LoginRequest;
 import com.contactmanagement.dto.request.RegisterRequest;
 import com.contactmanagement.dto.response.AuthResponse;
+import com.contactmanagement.dto.response.LoginResponse;
 import com.contactmanagement.entity.User;
 import com.contactmanagement.exception.DuplicateResourceException;
 import com.contactmanagement.repository.UserRepository;
+import com.contactmanagement.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,19 +21,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         log.info("Attempting to register user with email: {}", request.getEmail());
 
-        // Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
             log.warn("Registration failed: Email already exists - {}", request.getEmail());
             throw new DuplicateResourceException("Email already registered: " + request.getEmail());
         }
 
-        // Check if phone already exists (if provided)
         if (request.getPhone() != null && !request.getPhone().isEmpty()) {
             if (userRepository.existsByPhone(request.getPhone())) {
                 log.warn("Registration failed: Phone already exists - {}", request.getPhone());
@@ -38,7 +40,6 @@ public class AuthService {
             }
         }
 
-        // Create new user
         User user = new User();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -46,7 +47,6 @@ public class AuthService {
         user.setPhone(request.getPhone());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // Save user
         User savedUser = userRepository.save(user);
         log.info("User registered successfully with id: {}", savedUser.getId());
 
@@ -58,6 +58,37 @@ public class AuthService {
                 .phone(savedUser.getPhone())
                 .success(true)
                 .message("Registration successful! Please login.")
+                .build();
+    }
+
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        log.info("Attempting login with: {}", request.getEmailOrPhone());
+
+        User user = userRepository.findByEmail(request.getEmailOrPhone())
+                .or(() -> userRepository.findByPhone(request.getEmailOrPhone()))
+                .orElseThrow(() -> {
+                    log.warn("Login failed: User not found - {}", request.getEmailOrPhone());
+                    return new RuntimeException("Invalid email/phone or password");
+                });
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            log.warn("Login failed: Invalid password for user - {}", request.getEmailOrPhone());
+            throw new RuntimeException("Invalid email/phone or password");
+        }
+
+        String token = jwtTokenProvider.generateToken(user.getEmail());
+        log.info("User logged in successfully: {}", user.getEmail());
+
+        return LoginResponse.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .token(token)
+                .success(true)
+                .message("Login successful!")
                 .build();
     }
 }

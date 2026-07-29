@@ -1,0 +1,58 @@
+/* === DARK THEME  - NO WHITE ON SCROLL === */
+:root {
+  --bs-body-bg: #212529;
+}
+
+html {
+  background-color: #212529 !important;
+  min-height: 100vh;
+}
+
+body {
+  background-color: #212529 !important;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  background-color: #212529 !important;
+  min-height: 100vh;
+}
+
+/* Ensure no white space on any device */
+@media (max-width: 768px) {
+  html, body, #root {
+    min-height: 100vh;
+    height: auto;
+    background-color: #212529 !important;
+  }
+}
+
+/* Override Bootstrap's default background */
+.bg-dark {
+  background-color: #212529 !important;
+}
+
+/* Better touch feedback and accessibility */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Preserve accessibility with theme-appropriate tap highlights */
+button,
+a,
+input[type="submit"],
+input[type="button"] {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* For dark theme support */
+@media (prefers-color-scheme: dark) {
+  button,
+  a,
+  input[type="submit"],
+  input[type="button"] {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+  }
+}

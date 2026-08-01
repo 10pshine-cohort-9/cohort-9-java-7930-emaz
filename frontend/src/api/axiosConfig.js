@@ -5,6 +5,7 @@ const axiosConfig = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, 
 });
 
 // Add token to every request
@@ -23,7 +24,10 @@ axiosConfig.interceptors.request.use(
 axiosConfig.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Don't redirect on login or register endpoints
+    const isAuthEndpoint = error.config?.url?.includes('/auth/');
+    
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';

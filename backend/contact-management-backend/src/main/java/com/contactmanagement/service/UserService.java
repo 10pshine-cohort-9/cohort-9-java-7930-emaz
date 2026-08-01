@@ -92,19 +92,17 @@ public class UserService {
         log.info("Changing password for current user");
         User user = getCurrentUser();
 
-        // Verify current password
+        // In UserService.java - changePassword method
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             log.warn("Password change failed: Current password is incorrect");
-            throw new RuntimeException("Current password is incorrect");
+            throw new IllegalArgumentException("Current password is incorrect");
         }
 
-        // Check if new password matches confirm password
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             log.warn("Password change failed: New password and confirm password do not match");
-            throw new RuntimeException("New password and confirm password do not match");
+            throw new IllegalArgumentException("New password and confirm password do not match");
         }
 
-        // Encode and set new password
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
         log.info("Password changed successfully for user: {}", user.getEmail());

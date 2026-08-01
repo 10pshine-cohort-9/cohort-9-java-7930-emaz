@@ -6,6 +6,7 @@ import com.contactmanagement.dto.response.AuthResponse;
 import com.contactmanagement.dto.response.LoginResponse;
 import com.contactmanagement.entity.User;
 import com.contactmanagement.exception.DuplicateResourceException;
+import com.contactmanagement.exception.InvalidCredentialsException;
 import com.contactmanagement.repository.UserRepository;
 import com.contactmanagement.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -69,12 +70,12 @@ public class AuthService {
                 .or(() -> userRepository.findByPhone(request.getEmailOrPhone()))
                 .orElseThrow(() -> {
                     log.warn("Login failed: User not found - {}", request.getEmailOrPhone());
-                    return new RuntimeException("Invalid email/phone or password");
+                    return new InvalidCredentialsException("Invalid email/phone or password");
                 });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             log.warn("Login failed: Invalid password for user - {}", request.getEmailOrPhone());
-            throw new RuntimeException("Invalid email/phone or password");
+            throw new InvalidCredentialsException("Invalid email/phone or password");
         }
 
         String token = jwtTokenProvider.generateToken(user.getEmail());

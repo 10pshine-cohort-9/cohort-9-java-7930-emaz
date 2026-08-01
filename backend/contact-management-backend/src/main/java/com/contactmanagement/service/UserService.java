@@ -16,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -59,9 +61,10 @@ public class UserService {
             throw new DuplicateResourceException("Email already exists: " + request.getEmail());
         }
 
-        // Check if phone already exists for another user
+
+// Check if phone already exists for another user
         if (request.getPhone() != null && !request.getPhone().isEmpty() &&
-                !user.getPhone().equals(request.getPhone()) &&
+                !Objects.equals(user.getPhone(), request.getPhone()) &&  // ← Fix
                 userRepository.existsByPhone(request.getPhone())) {
             log.warn("Update failed: Phone already exists - {}", request.getPhone());
             throw new DuplicateResourceException("Phone number already exists: " + request.getPhone());

@@ -5,6 +5,7 @@ import com.contactmanagement.dto.request.RegisterRequest;
 import com.contactmanagement.dto.response.AuthResponse;
 import com.contactmanagement.dto.response.LoginResponse;
 import com.contactmanagement.exception.DuplicateResourceException;
+import com.contactmanagement.exception.InvalidCredentialsException;
 import com.contactmanagement.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,7 @@ public class AuthController {
         try {
             LoginResponse response = authService.login(request);
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (InvalidCredentialsException e) {
             log.error("Login failed: {}", e.getMessage());
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)

@@ -22,6 +22,8 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex) {
 
         Map<String, String> errors = new HashMap<>();
+        StringBuilder objectErrors = new StringBuilder();
+
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             if (error instanceof FieldError) {
                 String fieldName = ((FieldError) error).getField();
@@ -29,9 +31,16 @@ public class GlobalExceptionHandler {
                 errors.put(fieldName, errorMessage);
             } else {
                 // Object level error (like cross-field validation)
-                errors.put("error", error.getDefaultMessage());
+                if (objectErrors.length() > 0) {
+                    objectErrors.append(", ");
+                }
+                objectErrors.append(error.getDefaultMessage());
             }
         });
+
+        if (objectErrors.length() > 0) {
+            errors.put("errors", objectErrors.toString());
+        }
 
         log.warn("Validation failed: {}", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
@@ -86,9 +95,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(
             DataIntegrityViolationException ex) {
-        log.warn("Data integrity violation: {}", ex.getMessage());
+
+        String message = ex.getMessage();
         Map<String, String> error = new HashMap<>();
-        error.put("error", "Email or phone already exists");
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+
+        // Check if it's a unique constraint violation
+        if (message != null && message.contains("Duplicate entry") ||
+                message != null && message.contains("unique")) {
+            log.warn("Duplicate entry violation: {}", ex.getMessage());
+            error.put("error", "Email or phone already exists");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
+
+        // Unknown data integrity issue - let it go to generic handler
+        log.error("Unexpected data integrity violation: {}", ex.getMessage(), ex);
+        throw ex; // Re-throw for generic handler
     }
 }

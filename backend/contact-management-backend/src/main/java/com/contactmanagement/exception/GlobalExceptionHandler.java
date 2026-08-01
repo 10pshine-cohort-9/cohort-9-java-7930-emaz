@@ -18,17 +18,24 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(
             MethodArgumentNotValidException ex) {
 
-        Map<String, String> errors = new HashMap<>();
+        Map<String, Object> errors = new HashMap<>();
+        Map<String, String> fieldErrors = new HashMap<>();
         StringBuilder objectErrors = new StringBuilder();
 
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             if (error instanceof FieldError) {
                 String fieldName = ((FieldError) error).getField();
                 String errorMessage = error.getDefaultMessage();
-                errors.put(fieldName, errorMessage);
+
+                // Merge multiple messages for the same field
+                if (fieldErrors.containsKey(fieldName)) {
+                    fieldErrors.put(fieldName, fieldErrors.get(fieldName) + ", " + errorMessage);
+                } else {
+                    fieldErrors.put(fieldName, errorMessage);
+                }
             } else {
                 // Object level error (like cross-field validation)
                 if (objectErrors.length() > 0) {
@@ -38,6 +45,9 @@ public class GlobalExceptionHandler {
             }
         });
 
+        if (!fieldErrors.isEmpty()) {
+            errors.put("fieldErrors", fieldErrors);
+        }
         if (objectErrors.length() > 0) {
             errors.put("errors", objectErrors.toString());
         }

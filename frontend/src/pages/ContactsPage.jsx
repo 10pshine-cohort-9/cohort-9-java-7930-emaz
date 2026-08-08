@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Eye,
@@ -53,6 +53,13 @@ const ContactsPage = () => {
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Refs for modal focus
+  const addModalRef = useRef(null);
+  const editModalRef = useRef(null);
+  const deleteModalRef = useRef(null);
+  const viewModalRef = useRef(null);
+  const logoutModalRef = useRef(null);
+
   // Current logged in user - read from localStorage
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -96,8 +103,24 @@ const ContactsPage = () => {
     phones: [{ label: "work", value: "" }],
   });
 
-  // ========== FETCH CONTACTS ==========
+  // ========== HELPER: Get Error Message ==========
+  const getErrorMessage = (err) => {
+    const data = err.response?.data;
+    if (data?.error) return data.error;
+    if (data?.fieldErrors) {
+      const errors = Object.values(data.fieldErrors);
+      return errors.join(", ");
+    }
+    if (data?.errors) return data.errors;
+    return "An error occurred";
+  };
 
+  // ========== HELPER: Pluralization ==========
+  const getContactText = (count) => {
+    return count === 1 ? "contact" : "contacts";
+  };
+
+  // ========== FETCH CONTACTS ==========
   const fetchContacts = async (page = currentPage, search = searchTerm) => {
     setLoading(true);
     setError("");
@@ -113,7 +136,7 @@ const ContactsPage = () => {
       setContacts(data.content || []);
       setTotalPages(data.totalPages || 0);
       setTotalElements(data.totalElements || 0);
-      setCurrentPage(data.pageable?.pageNumber || 0);
+      setCurrentPage(data.number || 0);
     } catch (err) {
       setError("Failed to load contacts. Please try again.");
       console.error("Error fetching contacts:", err);
@@ -123,13 +146,12 @@ const ContactsPage = () => {
     }
   };
 
-  // Load contacts on mount and when page changes
+  // Load contacts on mount
   useEffect(() => {
     fetchContacts();
   }, []);
 
   // ========== TOAST ==========
-
   const showToastMessage = (message, type = "success") => {
     setToastMessage(message);
     setToastType(type);
@@ -140,13 +162,11 @@ const ContactsPage = () => {
   };
 
   // ========== PHONE VALIDATION ==========
-
   const validatePhoneInput = (value) => {
     return value.replace(/[^0-9+\s-]/g, "");
   };
 
   // ========== SEARCH ==========
-
   const handleSearch = () => {
     fetchContacts(0, searchTerm);
   };
@@ -163,7 +183,6 @@ const ContactsPage = () => {
   };
 
   // ========== HELPER: Get Email/Phone from API Response ==========
-
   const getContactEmail = (contact) => {
     if (contact.emails && contact.emails.length > 0) {
       return contact.emails[0].value;
@@ -178,8 +197,14 @@ const ContactsPage = () => {
     return contact.phone || "";
   };
 
-  // ========== ADD MODAL ==========
+  // ========== MODAL KEYBOARD ACCESSIBILITY ==========
+  const handleModalKeyDown = (e, closeModal) => {
+    if (e.key === "Escape") {
+      closeModal();
+    }
+  };
 
+  // ========== ADD MODAL ==========
   const openAddModal = () => setShowAddModal(true);
   const closeAddModal = () => {
     setShowAddModal(false);
@@ -278,7 +303,7 @@ const ContactsPage = () => {
       fetchContacts();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.message || "Failed to add contact",
+        getErrorMessage(err) || "Failed to add contact",
         "danger",
       );
     } finally {
@@ -287,7 +312,6 @@ const ContactsPage = () => {
   };
 
   // ========== EDIT MODAL ==========
-
   const openEditModal = (contact) => {
     setEditingContact(contact);
     setEditContact({
@@ -404,7 +428,7 @@ const ContactsPage = () => {
       fetchContacts();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.message || "Failed to update contact",
+        getErrorMessage(err) || "Failed to update contact",
         "danger",
       );
     } finally {
@@ -413,7 +437,6 @@ const ContactsPage = () => {
   };
 
   // ========== DELETE MODAL ==========
-
   const openDeleteModal = (contact) => {
     setDeletingContact(contact);
     setShowDeleteModal(true);
@@ -430,20 +453,19 @@ const ContactsPage = () => {
       await deleteContact(deletingContact.id);
       showToastMessage(
         `${deletingContact.firstName} ${deletingContact.lastName} deleted successfully!`,
-        "danger",
+        "success",
       );
       closeDeleteModal();
       fetchContacts();
     } catch (err) {
       showToastMessage(
-        err.response?.data?.message || "Failed to delete contact",
+        getErrorMessage(err) || "Failed to delete contact",
         "danger",
       );
     }
   };
 
   // ========== VIEW MODAL ==========
-
   const openViewModal = (contact) => {
     setViewingContact(contact);
     setShowViewModal(true);
@@ -455,7 +477,6 @@ const ContactsPage = () => {
   };
 
   // ========== COPY TO CLIPBOARD ==========
-
   const copyToClipboard = (text, label) => {
     navigator.clipboard
       .writeText(text)
@@ -468,7 +489,6 @@ const ContactsPage = () => {
   };
 
   // ========== PROFILE MENU ==========
-
   const toggleProfileMenu = () => {
     setShowProfileMenu(!showProfileMenu);
   };
@@ -779,7 +799,9 @@ const ContactsPage = () => {
           <div>
             <h1 className="text-white fw-bold mb-1">Contacts</h1>
             <p className="text-light opacity-75 small">
-              {loading ? "Loading..." : `${totalElements} contacts found`}
+              {loading
+                ? "Loading..."
+                : `${totalElements} ${getContactText(totalElements)} found`}
             </p>
           </div>
           <div className="d-flex gap-2">
@@ -925,7 +947,8 @@ const ContactsPage = () => {
 
             <div className="d-flex flex-wrap justify-content-between align-items-center p-3 border-top border-secondary gap-2">
               <span className="text-light opacity-75 small">
-                Showing {contacts.length} of {totalElements} contacts
+                Showing {contacts.length} of {totalElements}{" "}
+                {getContactText(totalElements)}
               </span>
               <div className="d-flex align-items-center gap-1">
                 <button
@@ -963,6 +986,9 @@ const ContactsPage = () => {
       {/* ============================================ */}
       {showAddModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-modal-title"
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
             zIndex: 1050,
@@ -970,8 +996,10 @@ const ContactsPage = () => {
             backdropFilter: "blur(4px)",
           }}
           onClick={closeAddModal}
+          onKeyDown={(e) => handleModalKeyDown(e, closeAddModal)}
         >
           <div
+            ref={addModalRef}
             className="bg-dark rounded-4 border border-secondary"
             style={{
               maxWidth: "560px",
@@ -991,7 +1019,9 @@ const ContactsPage = () => {
                   <UserPlus size={22} className="text-white" />
                 </div>
                 <div>
-                  <h5 className="text-white fw-bold mb-0">Add New Contact</h5>
+                  <h5 id="add-modal-title" className="text-white fw-bold mb-0">
+                    Add New Contact
+                  </h5>
                   <p className="text-light opacity-75 small mb-0">
                     Fill in the details to create a new profile.
                   </p>
@@ -1000,18 +1030,24 @@ const ContactsPage = () => {
               <button
                 className="btn btn-sm btn-outline-secondary border-0 text-secondary"
                 onClick={closeAddModal}
+                aria-label="Close modal"
               >
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleAddSubmit}>
               <div className="p-4">
+                {/* Form fields same as before */}
                 <div className="row g-3 mb-3">
                   <div className="col-6">
-                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    <label
+                      htmlFor="add-firstName"
+                      className="text-light opacity-75 small fw-semibold text-uppercase mb-1"
+                    >
                       First Name
                     </label>
                     <input
+                      id="add-firstName"
                       type="text"
                       name="firstName"
                       className="form-control bg-dark text-white border-secondary"
@@ -1019,13 +1055,18 @@ const ContactsPage = () => {
                       value={newContact.firstName}
                       onChange={handleFormChange}
                       required
+                      autoFocus
                     />
                   </div>
                   <div className="col-6">
-                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    <label
+                      htmlFor="add-lastName"
+                      className="text-light opacity-75 small fw-semibold text-uppercase mb-1"
+                    >
                       Last Name
                     </label>
                     <input
+                      id="add-lastName"
                       type="text"
                       name="lastName"
                       className="form-control bg-dark text-white border-secondary"
@@ -1037,7 +1078,10 @@ const ContactsPage = () => {
                   </div>
                 </div>
                 <div className="mb-3">
-                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                  <label
+                    htmlFor="add-title"
+                    className="text-light opacity-75 small fw-semibold text-uppercase mb-1"
+                  >
                     Title
                   </label>
                   <div className="input-group">
@@ -1045,6 +1089,7 @@ const ContactsPage = () => {
                       <Briefcase size={18} />
                     </span>
                     <input
+                      id="add-title"
                       type="text"
                       name="title"
                       className="form-control bg-dark text-white border-secondary border-start-0"
@@ -1183,6 +1228,9 @@ const ContactsPage = () => {
       {/* ============================================ */}
       {showEditModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-modal-title"
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
             zIndex: 1050,
@@ -1190,8 +1238,10 @@ const ContactsPage = () => {
             backdropFilter: "blur(4px)",
           }}
           onClick={closeEditModal}
+          onKeyDown={(e) => handleModalKeyDown(e, closeEditModal)}
         >
           <div
+            ref={editModalRef}
             className="bg-dark rounded-4 border border-secondary"
             style={{
               maxWidth: "560px",
@@ -1211,7 +1261,7 @@ const ContactsPage = () => {
                   <Edit size={22} className="text-white" />
                 </div>
                 <div>
-                  <h5 className="text-white fw-bold mb-0">
+                  <h5 id="edit-modal-title" className="text-white fw-bold mb-0">
                     Edit Contact Profile
                   </h5>
                   <p className="text-light opacity-75 small mb-0">
@@ -1222,6 +1272,7 @@ const ContactsPage = () => {
               <button
                 className="btn btn-sm btn-outline-secondary border-0 text-secondary"
                 onClick={closeEditModal}
+                aria-label="Close modal"
               >
                 <X size={20} />
               </button>
@@ -1230,10 +1281,14 @@ const ContactsPage = () => {
               <div className="p-4">
                 <div className="row g-3 mb-3">
                   <div className="col-6">
-                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    <label
+                      htmlFor="edit-firstName"
+                      className="text-light opacity-75 small fw-semibold text-uppercase mb-1"
+                    >
                       First Name
                     </label>
                     <input
+                      id="edit-firstName"
                       type="text"
                       name="firstName"
                       className="form-control bg-dark text-white border-secondary"
@@ -1241,13 +1296,18 @@ const ContactsPage = () => {
                       value={editContact.firstName}
                       onChange={handleEditChange}
                       required
+                      autoFocus
                     />
                   </div>
                   <div className="col-6">
-                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    <label
+                      htmlFor="edit-lastName"
+                      className="text-light opacity-75 small fw-semibold text-uppercase mb-1"
+                    >
                       Last Name
                     </label>
                     <input
+                      id="edit-lastName"
                       type="text"
                       name="lastName"
                       className="form-control bg-dark text-white border-secondary"
@@ -1259,7 +1319,10 @@ const ContactsPage = () => {
                   </div>
                 </div>
                 <div className="mb-3">
-                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                  <label
+                    htmlFor="edit-title"
+                    className="text-light opacity-75 small fw-semibold text-uppercase mb-1"
+                  >
                     Title
                   </label>
                   <div className="input-group">
@@ -1267,6 +1330,7 @@ const ContactsPage = () => {
                       <Briefcase size={18} />
                     </span>
                     <input
+                      id="edit-title"
                       type="text"
                       name="title"
                       className="form-control bg-dark text-white border-secondary border-start-0"
@@ -1413,6 +1477,9 @@ const ContactsPage = () => {
       {/* ============================================ */}
       {showDeleteModal && deletingContact && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
             zIndex: 1050,
@@ -1420,8 +1487,10 @@ const ContactsPage = () => {
             backdropFilter: "blur(4px)",
           }}
           onClick={closeDeleteModal}
+          onKeyDown={(e) => handleModalKeyDown(e, closeDeleteModal)}
         >
           <div
+            ref={deleteModalRef}
             className="bg-dark rounded-4 border border-secondary"
             style={{ maxWidth: "480px", width: "100%", margin: "16px" }}
             onClick={(e) => e.stopPropagation()}
@@ -1440,7 +1509,12 @@ const ContactsPage = () => {
                   <AlertTriangle size={20} className="text-danger" />
                 </div>
                 <div className="flex-grow-1">
-                  <h5 className="text-white fw-bold mb-1">Delete contact?</h5>
+                  <h5
+                    id="delete-modal-title"
+                    className="text-white fw-bold mb-1"
+                  >
+                    Delete contact?
+                  </h5>
                   <p className="text-light opacity-75 small mb-0">
                     Are you sure you want to delete this contact? This action
                     cannot be undone.
@@ -1449,7 +1523,7 @@ const ContactsPage = () => {
                 <button
                   className="btn btn-sm btn-outline-secondary border-0 text-secondary"
                   onClick={closeDeleteModal}
-                  style={{ flexShrink: 0 }}
+                  aria-label="Close modal"
                 >
                   <X size={20} />
                 </button>
@@ -1487,6 +1561,7 @@ const ContactsPage = () => {
                 type="button"
                 className="btn btn-outline-secondary"
                 onClick={closeDeleteModal}
+                autoFocus
               >
                 Cancel
               </button>
@@ -1507,6 +1582,9 @@ const ContactsPage = () => {
       {/* ============================================ */}
       {showViewModal && viewingContact && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="view-modal-title"
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
             zIndex: 1050,
@@ -1514,8 +1592,10 @@ const ContactsPage = () => {
             backdropFilter: "blur(4px)",
           }}
           onClick={closeViewModal}
+          onKeyDown={(e) => handleModalKeyDown(e, closeViewModal)}
         >
           <div
+            ref={viewModalRef}
             className="bg-dark rounded-4 border border-secondary"
             style={{
               maxWidth: "540px",
@@ -1527,14 +1607,19 @@ const ContactsPage = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="d-flex justify-content-between align-items-center p-4 border-bottom border-secondary">
-              <h5 className="text-white fw-bold mb-0">Contact Information</h5>
+              <h5 id="view-modal-title" className="text-white fw-bold mb-0">
+                Contact Information
+              </h5>
               <button
                 className="btn btn-sm btn-outline-secondary border-0 text-secondary"
                 onClick={closeViewModal}
+                aria-label="Close modal"
+                autoFocus
               >
                 <X size={20} />
               </button>
             </div>
+            {/* View modal content - same as before */}
             <div className="text-center p-4">
               <div className="position-relative d-inline-block">
                 <div
@@ -1659,6 +1744,9 @@ const ContactsPage = () => {
       {/* ============================================ */}
       {showLogoutModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-modal-title"
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
             zIndex: 1050,
@@ -1666,9 +1754,11 @@ const ContactsPage = () => {
             backdropFilter: "blur(4px)",
           }}
           onClick={closeLogoutModal}
+          onKeyDown={(e) => handleModalKeyDown(e, closeLogoutModal)}
         >
           <div
-            className="bg-dark rounded-4 border border-secondary p-4 text-center"
+            ref={logoutModalRef}
+            className="bg-dark rounded-4 border border-secondary p-4 text-center position-relative"
             style={{ maxWidth: "460px", width: "100%", margin: "16px" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1676,6 +1766,7 @@ const ContactsPage = () => {
               className="btn btn-sm btn-outline-secondary border-0 text-secondary position-absolute"
               onClick={closeLogoutModal}
               style={{ top: "20px", right: "20px" }}
+              aria-label="Close modal"
             >
               <X size={20} />
             </button>
@@ -1689,7 +1780,9 @@ const ContactsPage = () => {
             >
               <LogOut size={24} className="text-danger" />
             </div>
-            <h4 className="fw-bold text-white mb-2">Log Out</h4>
+            <h4 id="logout-modal-title" className="fw-bold text-white mb-2">
+              Log Out
+            </h4>
             <p className="text-light opacity-75 small mb-4">
               Are you sure you want to log out of your account?
             </p>
@@ -1698,6 +1791,7 @@ const ContactsPage = () => {
                 type="button"
                 className="btn btn-outline-secondary px-4"
                 onClick={closeLogoutModal}
+                autoFocus
               >
                 Cancel
               </button>

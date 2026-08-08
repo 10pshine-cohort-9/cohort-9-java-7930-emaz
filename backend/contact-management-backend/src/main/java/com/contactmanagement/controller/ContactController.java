@@ -4,6 +4,8 @@ import com.contactmanagement.dto.request.ContactRequest;
 import com.contactmanagement.dto.response.ContactResponse;
 import com.contactmanagement.service.ContactService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -45,10 +47,13 @@ public class ContactController {
 
     @GetMapping("/search")
     public ResponseEntity<Page<ContactResponse>> searchContacts(
-            @RequestParam String query,
+            @RequestParam
+            @NotBlank(message = "Search query is required")
+            @Size(max = 100, message = "Search query must be at most 100 characters")
+            String query,
             @PageableDefault(size = 10, sort = "firstName") Pageable pageable) {
         log.info("Received request to search contacts with query: {}", query);
-        Page<ContactResponse> contacts = contactService.searchContacts(query, pageable);
+        Page<ContactResponse> contacts = contactService.searchContacts(query.trim(), pageable);
         return ResponseEntity.ok(contacts);
     }
 

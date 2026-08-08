@@ -21,8 +21,7 @@ import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -187,9 +186,10 @@ class ContactControllerTest {
 
     @Test
     void shouldReturnNotFoundWhenDeletingNonExistentContact() throws Exception {
-        doNothing().when(contactService).deleteContact(999L);
+        doThrow(new ContactNotFoundException("Contact not found with id: 999"))
+                .when(contactService).deleteContact(999L);
 
         mockMvc.perform(delete("/api/contacts/999"))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isNotFound());
     }
 }

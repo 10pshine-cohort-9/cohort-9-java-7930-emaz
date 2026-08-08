@@ -4815,3 +4815,33 @@ Caused by: org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statemen
 2026-08-08 15:17:29 [main] INFO  o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
 2026-08-08 15:17:30 [main] INFO  c.c.repository.ContactRepositoryTest - Started ContactRepositoryTest in 4.243 seconds (process running for 5.254)
 2026-08-08 15:17:31 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-08-08 15:42:25 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2026-08-08 15:42:25 [main] INFO  c.c.controller.ContactControllerTest - Starting ContactControllerTest using Java 17.0.18 with PID 25628 (started by asima in C:\EmazWorkspace\CMS\cohort-9-java-7930-emaz\backend\contact-management-backend)
+2026-08-08 15:42:25 [main] DEBUG c.c.controller.ContactControllerTest - Running with Spring Boot v3.5.4, Spring v6.2.9
+2026-08-08 15:42:25 [main] INFO  c.c.controller.ContactControllerTest - No active profile set, falling back to 1 default profile: "default"
+2026-08-08 15:42:26 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: d5f4a817-7322-4dc1-837c-032e3ca856b9
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-08-08 15:42:27 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-08-08 15:42:27 [main] INFO  o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
+2026-08-08 15:42:27 [main] INFO  o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
+2026-08-08 15:42:27 [main] INFO  o.s.t.w.s.TestDispatcherServlet - Completed initialization in 2 ms
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactControllerTest - Started ContactControllerTest in 2.683 seconds (process running for 3.786)
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to get contact with id: 1
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to search contacts with query: Ahmed
+2026-08-08 15:42:27 [main] WARN  o.s.d.w.c.SpringDataJacksonConfiguration$PageModule$WarningLoggingModifier - Serializing PageImpl instances as-is is not supported, meaning that there is no guarantee about the stability of the resulting JSON structure!
+	For a stable JSON structure, please use Spring Data's PagedModel (globally via @EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO))
+	or Spring HATEOAS and Spring Data's PagedResourcesAssembler as documented in https://docs.spring.io/spring-data/commons/reference/repositories/core-extensions.html#core.web.pageables.
+
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to get contact with id: 999
+2026-08-08 15:42:27 [main] WARN  c.c.exception.GlobalExceptionHandler - Contact not found: Contact not found with id: 999
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to delete contact with id: 999
+2026-08-08 15:42:27 [main] WARN  c.c.exception.GlobalExceptionHandler - Contact not found: Contact not found with id: 999
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to delete contact with id: 1
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to create contact
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to get all contacts
+2026-08-08 15:42:27 [main] INFO  c.c.controller.ContactController - Received request to update contact with id: 1
+2026-08-08 15:42:27 [main] WARN  c.c.exception.GlobalExceptionHandler - Validation failed: {fieldErrors={firstName=First name is required, lastName=Last name is required}}

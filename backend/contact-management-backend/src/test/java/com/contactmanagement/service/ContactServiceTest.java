@@ -7,6 +7,7 @@ import com.contactmanagement.entity.User;
 import com.contactmanagement.exception.ContactNotFoundException;
 import com.contactmanagement.repository.ContactRepository;
 import com.contactmanagement.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,10 +71,17 @@ class ContactServiceTest {
         contactRequest.setFirstName("Ahmed");
         contactRequest.setLastName("Khan");
         contactRequest.setTitle("Software Engineer");
+    }
 
-        // Mock SecurityContext
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void setupSecurityContext() {
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getName()).thenReturn("emaz@gmail.com");
+        when(authentication.isAuthenticated()).thenReturn(true);
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -81,6 +89,7 @@ class ContactServiceTest {
 
     @Test
     void shouldCreateContactSuccessfully() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.save(any(Contact.class))).thenReturn(contact);
 
@@ -95,6 +104,7 @@ class ContactServiceTest {
 
     @Test
     void shouldThrowExceptionWhenUserNotFound() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> contactService.createContact(contactRequest))
@@ -108,6 +118,7 @@ class ContactServiceTest {
 
     @Test
     void shouldGetContactSuccessfully() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.findById(1L)).thenReturn(Optional.of(contact));
 
@@ -121,6 +132,7 @@ class ContactServiceTest {
 
     @Test
     void shouldThrowExceptionWhenContactNotFound() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -131,6 +143,7 @@ class ContactServiceTest {
 
     @Test
     void shouldThrowExceptionWhenContactBelongsToAnotherUser() {
+        setupSecurityContext();
         User otherUser = new User();
         otherUser.setId(2L);
         contact.setUser(otherUser);
@@ -147,6 +160,7 @@ class ContactServiceTest {
 
     @Test
     void shouldGetAllContactsSuccessfully() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         Pageable pageable = PageRequest.of(0, 10);
         Page<Contact> contactPage = new PageImpl<>(Collections.singletonList(contact));
@@ -159,10 +173,26 @@ class ContactServiceTest {
         assertThat(response.getContent().get(0).getFirstName()).isEqualTo("Ahmed");
     }
 
+    @Test
+    void shouldReturnEmptyPageWhenNoContacts() {
+        setupSecurityContext();
+        when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Contact> emptyPage = new PageImpl<>(Collections.emptyList());
+        when(contactRepository.findByUserId(user.getId(), pageable)).thenReturn(emptyPage);
+
+        Page<ContactResponse> response = contactService.getContacts(pageable);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getTotalElements()).isEqualTo(0);
+        assertThat(response.getContent()).isEmpty();
+    }
+
     // ========== SEARCH CONTACTS TESTS ==========
 
     @Test
     void shouldSearchContactsSuccessfully() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         Pageable pageable = PageRequest.of(0, 10);
         Page<Contact> contactPage = new PageImpl<>(Collections.singletonList(contact));
@@ -175,10 +205,26 @@ class ContactServiceTest {
         assertThat(response.getContent().get(0).getFirstName()).isEqualTo("Ahmed");
     }
 
+    @Test
+    void shouldReturnEmptyWhenSearchNotFound() {
+        setupSecurityContext();
+        when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Contact> emptyPage = new PageImpl<>(Collections.emptyList());
+        when(contactRepository.searchContacts(user.getId(), "Nonexistent", pageable)).thenReturn(emptyPage);
+
+        Page<ContactResponse> response = contactService.searchContacts("Nonexistent", pageable);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getTotalElements()).isEqualTo(0);
+        assertThat(response.getContent()).isEmpty();
+    }
+
     // ========== UPDATE CONTACT TESTS ==========
 
     @Test
     void shouldUpdateContactSuccessfully() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.findById(1L)).thenReturn(Optional.of(contact));
         when(contactRepository.save(any(Contact.class))).thenReturn(contact);
@@ -199,6 +245,7 @@ class ContactServiceTest {
 
     @Test
     void shouldThrowExceptionWhenUpdatingNonExistentContact() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.findById(999L)).thenReturn(Optional.empty());
 
@@ -211,6 +258,7 @@ class ContactServiceTest {
 
     @Test
     void shouldDeleteContactSuccessfully() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.findById(1L)).thenReturn(Optional.of(contact));
 
@@ -221,6 +269,7 @@ class ContactServiceTest {
 
     @Test
     void shouldThrowExceptionWhenDeletingNonExistentContact() {
+        setupSecurityContext();
         when(userRepository.findByEmail("emaz@gmail.com")).thenReturn(Optional.of(user));
         when(contactRepository.findById(999L)).thenReturn(Optional.empty());
 

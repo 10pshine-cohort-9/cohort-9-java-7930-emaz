@@ -11,14 +11,14 @@ import java.util.List;
 public class ContactRequest {
 
     @NotBlank(message = "First name is required")
-    @Size(max = 50, message = "First name must be less than 50 characters")
+    @Size(max = 50, message = "First name must be at most 50 characters")
     private String firstName;
 
     @NotBlank(message = "Last name is required")
-    @Size(max = 50, message = "Last name must be less than 50 characters")
+    @Size(max = 50, message = "Last name must be at most 50 characters")
     private String lastName;
 
-    @Size(max = 100, message = "Title must be less than 100 characters")
+    @Size(max = 100, message = "Title must be at most 100 characters")
     private String title;
 
     @Valid

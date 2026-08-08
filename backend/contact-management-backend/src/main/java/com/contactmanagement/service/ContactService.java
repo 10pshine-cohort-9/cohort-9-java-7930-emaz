@@ -32,9 +32,24 @@ public class ContactService {
 
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // Guard against null or anonymous authentication
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Authentication is null or not authenticated");
+            throw new RuntimeException("User not authenticated");
+        }
+
         String email = authentication.getName();
+        if ("anonymousUser".equals(email) || email == null) {
+            log.warn("Anonymous user or null email");
+            throw new RuntimeException("User not authenticated");
+        }
+
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> {
+                    log.warn("User not found with email: {}", email);
+                    return new UsernameNotFoundException("User not found");
+                });
     }
 
     private ContactResponse mapToResponse(Contact contact) {

@@ -137,7 +137,7 @@ public class GlobalExceptionHandler {
             PropertyReferenceException ex) {
         log.warn("Invalid sort property: {}", ex.getMessage());
         Map<String, String> error = new HashMap<>();
-        error.put("error", "Invalid sort property: " + ex.getMessage());
+        error.put("error", "Invalid sort parameter. Please use: firstName, lastName, title, createdAt");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 }

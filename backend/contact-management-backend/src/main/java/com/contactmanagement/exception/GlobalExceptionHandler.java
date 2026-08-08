@@ -121,4 +121,13 @@ public class GlobalExceptionHandler {
         log.error("Unexpected data integrity violation: {}", ex.getMessage(), ex);
         throw ex; // Re-throw for generic handler
     }
+
+    @ExceptionHandler(ContactNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleContactNotFound(
+            ContactNotFoundException ex) {
+        log.warn("Contact not found: {}", ex.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
 }

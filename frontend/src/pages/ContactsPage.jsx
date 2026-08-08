@@ -20,12 +20,25 @@ import {
   LogOut,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import {
+  getContacts,
+  searchContacts,
+  createContact,
+  updateContact,
+  deleteContact,
+} from "../api/contactApi";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 const ContactsPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [contacts, setContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -38,7 +51,7 @@ const ContactsPage = () => {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState("");
   const [showToast, setShowToast] = useState(false);
-  const itemsPerPage = 5;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Current logged in user - read from localStorage
   const [currentUser, setCurrentUser] = useState(() => {
@@ -83,74 +96,40 @@ const ContactsPage = () => {
     phones: [{ label: "work", value: "" }],
   });
 
-  const allContacts = [
-    {
-      id: 1,
-      firstName: "Sarah",
-      lastName: "Mitchell",
-      title: "Senior Architect",
-      email: "sarah.m@nexus-industries.com",
-      phone: "0300-1234567",
-      avatar: "SM",
-      color: "#0052cc",
-      emails: [{ label: "work", value: "sarah.m@nexus-industries.com" }],
-      phones: [{ label: "work", value: "0300-1234567" }],
-    },
-    {
-      id: 2,
-      firstName: "David",
-      lastName: "Rodriguez",
-      title: "Product Lead",
-      email: "d.rodriguez@vanguard.io",
-      phone: "0311-9876543",
-      avatar:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-      color: "#00875a",
-      emails: [{ label: "work", value: "d.rodriguez@vanguard.io" }],
-      phones: [{ label: "mobile", value: "0311-9876543" }],
-    },
-    {
-      id: 3,
-      firstName: "Linda",
-      lastName: "Chen",
-      title: "CTO",
-      email: "lchen@techflow.net",
-      phone: "0322-4567890",
-      avatar: "LC",
-      color: "#00875a",
-      emails: [{ label: "work", value: "lchen@techflow.net" }],
-      phones: [{ label: "work", value: "0322-4567890" }],
-    },
-    {
-      id: 4,
-      firstName: "Eleanor",
-      lastName: "Vance",
-      title: "Managing Partner",
-      email: "vance.e@horizon-legal.com",
-      phone: "0333-7890123",
-      avatar:
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
-      color: "#42526e",
-      emails: [{ label: "work", value: "vance.e@horizon-legal.com" }],
-      phones: [{ label: "work", value: "0333-7890123" }],
-    },
-    {
-      id: 5, // ← Fixed: changed from 4 to 5
-      firstName: "Gregory",
-      lastName: "Kane",
-      title: "Sales Director",
-      email: "gkane@global-logistics.net",
-      phone: "0344-5678901",
-      avatar: "GK",
-      color: "#42526e",
-      emails: [{ label: "work", value: "gkane@global-logistics.net" }],
-      phones: [{ label: "mobile", value: "0344-5678901" }],
-    },
-  ];
+  // ========== FETCH CONTACTS ==========
 
-  const [contacts, setContacts] = useState(allContacts);
+  const fetchContacts = async (page = currentPage, search = searchTerm) => {
+    setLoading(true);
+    setError("");
+    try {
+      let response;
+      if (search.trim()) {
+        response = await searchContacts(search, page, pageSize);
+      } else {
+        response = await getContacts(page, pageSize);
+      }
 
-  // Toast notification
+      const data = response.data;
+      setContacts(data.content || []);
+      setTotalPages(data.totalPages || 0);
+      setTotalElements(data.totalElements || 0);
+      setCurrentPage(data.pageable?.pageNumber || 0);
+    } catch (err) {
+      setError("Failed to load contacts. Please try again.");
+      console.error("Error fetching contacts:", err);
+      showToastMessage("Failed to load contacts", "danger");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load contacts on mount and when page changes
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
+  // ========== TOAST ==========
+
   const showToastMessage = (message, type = "success") => {
     setToastMessage(message);
     setToastType(type);
@@ -160,40 +139,47 @@ const ContactsPage = () => {
     }, 2000);
   };
 
-  // Phone number validation
+  // ========== PHONE VALIDATION ==========
+
   const validatePhoneInput = (value) => {
     return value.replace(/[^0-9+\s-]/g, "");
   };
 
-  // Search function
-  const filteredContacts = contacts.filter((contact) => {
-    const searchLower = searchTerm.toLowerCase().trim();
-    if (!searchLower) return true;
+  // ========== SEARCH ==========
 
-    return (
-      contact.firstName.toLowerCase().includes(searchLower) ||
-      contact.lastName.toLowerCase().includes(searchLower) ||
-      contact.title.toLowerCase().includes(searchLower) ||
-      contact.email.toLowerCase().includes(searchLower) ||
-      contact.phone.includes(searchLower) ||
-      `${contact.firstName} ${contact.lastName}`
-        .toLowerCase()
-        .includes(searchLower)
-    );
-  });
+  const handleSearch = () => {
+    fetchContacts(0, searchTerm);
+  };
 
-  // Pagination
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredContacts.length / itemsPerPage),
-  );
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedContacts = filteredContacts.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
+  const clearSearch = () => {
+    setSearchTerm("");
+    fetchContacts(0, "");
+  };
 
-  // ========== ADD MODAL HANDLERS ==========
+  const handleSearchKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  // ========== HELPER: Get Email/Phone from API Response ==========
+
+  const getContactEmail = (contact) => {
+    if (contact.emails && contact.emails.length > 0) {
+      return contact.emails[0].value;
+    }
+    return contact.email || "";
+  };
+
+  const getContactPhone = (contact) => {
+    if (contact.phones && contact.phones.length > 0) {
+      return contact.phones[0].value;
+    }
+    return contact.phone || "";
+  };
+
+  // ========== ADD MODAL ==========
+
   const openAddModal = () => setShowAddModal(true);
   const closeAddModal = () => {
     setShowAddModal(false);
@@ -272,43 +258,48 @@ const ContactsPage = () => {
     }
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await createContact({
+        firstName: newContact.firstName,
+        lastName: newContact.lastName,
+        title: newContact.title,
+        emails: newContact.emails.filter((e) => e.value.trim()),
+        phones: newContact.phones.filter((p) => p.value.trim()),
+      });
 
-    const newContactData = {
-      id: Date.now(), // ← Fixed: use timestamp for unique id
-      firstName: newContact.firstName,
-      lastName: newContact.lastName,
-      title: newContact.title,
-      email: newContact.emails[0]?.value || "",
-      phone: newContact.phones[0]?.value || "",
-      avatar: `${newContact.firstName.charAt(0)}${newContact.lastName.charAt(0)}`,
-      color: "#2563eb",
-      emails: newContact.emails,
-      phones: newContact.phones,
-    };
-
-    setContacts([...contacts, newContactData]);
-    closeAddModal();
-    showToastMessage(
-      `${newContact.firstName} ${newContact.lastName} added successfully!`,
-      "success",
-    );
+      showToastMessage(
+        `${newContact.firstName} ${newContact.lastName} added successfully!`,
+        "success",
+      );
+      closeAddModal();
+      fetchContacts();
+    } catch (err) {
+      showToastMessage(
+        err.response?.data?.message || "Failed to add contact",
+        "danger",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // ========== EDIT MODAL HANDLERS ==========
+  // ========== EDIT MODAL ==========
+
   const openEditModal = (contact) => {
     setEditingContact(contact);
     setEditContact({
       id: contact.id,
       firstName: contact.firstName,
       lastName: contact.lastName,
-      title: contact.title,
+      title: contact.title || "",
       emails: contact.emails?.map((e) => ({ ...e })) || [
-        { label: "work", value: contact.email },
+        { label: "work", value: getContactEmail(contact) },
       ],
       phones: contact.phones?.map((p) => ({ ...p })) || [
-        { label: "work", value: contact.phone },
+        { label: "work", value: getContactPhone(contact) },
       ],
     });
     setShowEditModal(true);
@@ -393,35 +384,36 @@ const ContactsPage = () => {
     }
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await updateContact(editContact.id, {
+        firstName: editContact.firstName,
+        lastName: editContact.lastName,
+        title: editContact.title,
+        emails: editContact.emails.filter((e) => e.value.trim()),
+        phones: editContact.phones.filter((p) => p.value.trim()),
+      });
 
-    const updatedContacts = contacts.map((contact) => {
-      if (contact.id === editContact.id) {
-        return {
-          ...contact,
-          firstName: editContact.firstName,
-          lastName: editContact.lastName,
-          title: editContact.title,
-          email: editContact.emails[0]?.value || "",
-          phone: editContact.phones[0]?.value || "",
-          avatar: `${editContact.firstName.charAt(0)}${editContact.lastName.charAt(0)}`,
-          emails: editContact.emails,
-          phones: editContact.phones,
-        };
-      }
-      return contact;
-    });
-
-    setContacts(updatedContacts);
-    closeEditModal();
-    showToastMessage(
-      `${editContact.firstName} ${editContact.lastName} updated successfully!`,
-      "success",
-    );
+      showToastMessage(
+        `${editContact.firstName} ${editContact.lastName} updated successfully!`,
+        "success",
+      );
+      closeEditModal();
+      fetchContacts();
+    } catch (err) {
+      showToastMessage(
+        err.response?.data?.message || "Failed to update contact",
+        "danger",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // ========== DELETE MODAL HANDLERS ==========
+  // ========== DELETE MODAL ==========
+
   const openDeleteModal = (contact) => {
     setDeletingContact(contact);
     setShowDeleteModal(true);
@@ -432,20 +424,26 @@ const ContactsPage = () => {
     setDeletingContact(null);
   };
 
-  const handleDeleteConfirm = () => {
-    if (deletingContact) {
-      setContacts(
-        contacts.filter((contact) => contact.id !== deletingContact.id),
-      );
+  const handleDeleteConfirm = async () => {
+    if (!deletingContact) return;
+    try {
+      await deleteContact(deletingContact.id);
       showToastMessage(
         `${deletingContact.firstName} ${deletingContact.lastName} deleted successfully!`,
         "danger",
       );
       closeDeleteModal();
+      fetchContacts();
+    } catch (err) {
+      showToastMessage(
+        err.response?.data?.message || "Failed to delete contact",
+        "danger",
+      );
     }
   };
 
-  // ========== VIEW MODAL HANDLERS ==========
+  // ========== VIEW MODAL ==========
+
   const openViewModal = (contact) => {
     setViewingContact(contact);
     setShowViewModal(true);
@@ -457,6 +455,7 @@ const ContactsPage = () => {
   };
 
   // ========== COPY TO CLIPBOARD ==========
+
   const copyToClipboard = (text, label) => {
     navigator.clipboard
       .writeText(text)
@@ -469,6 +468,7 @@ const ContactsPage = () => {
   };
 
   // ========== PROFILE MENU ==========
+
   const toggleProfileMenu = () => {
     setShowProfileMenu(!showProfileMenu);
   };
@@ -552,29 +552,25 @@ const ContactsPage = () => {
   };
 
   const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
+    if (page >= 0 && page < totalPages) {
+      fetchContacts(page);
     }
   };
 
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
-    let start = Math.max(1, currentPage - 2);
-    let end = Math.min(totalPages, start + maxVisible - 1);
+    let start = Math.max(0, currentPage - 2);
+    let end = Math.min(totalPages - 1, start + maxVisible - 1);
 
     if (end - start < maxVisible - 1) {
-      start = Math.max(1, end - maxVisible + 1);
+      start = Math.max(0, end - maxVisible + 1);
     }
 
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
     return pages;
-  };
-
-  const clearSearch = () => {
-    setSearchTerm("");
   };
 
   // Close profile menu when clicking outside
@@ -619,9 +615,7 @@ const ContactsPage = () => {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
           }
-          .profile-menu-container {
-            position: relative;
-          }
+          .profile-menu-container { position: relative; }
           .profile-dropdown {
             position: absolute;
             top: 45px;
@@ -640,7 +634,6 @@ const ContactsPage = () => {
             gap: 12px;
             padding: 10px 16px;
             color: #e0e0e0;
-            text-decoration: none;
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.2s;
@@ -649,17 +642,9 @@ const ContactsPage = () => {
             width: 100%;
             font-size: 14px;
           }
-          .profile-dropdown-item:hover {
-            background-color: rgba(255,255,255,0.05);
-          }
-          .profile-dropdown-item.text-danger:hover {
-            background-color: rgba(220, 53, 69, 0.15);
-          }
-          .profile-dropdown-divider {
-            height: 1px;
-            background-color: #495057;
-            margin: 6px 8px;
-          }
+          .profile-dropdown-item:hover { background-color: rgba(255,255,255,0.05); }
+          .profile-dropdown-item.text-danger:hover { background-color: rgba(220, 53, 69, 0.15); }
+          .profile-dropdown-divider { height: 1px; background-color: #495057; margin: 6px 8px; }
           @media (max-width: 576px) {
             .profile-dropdown {
               position: fixed;
@@ -670,45 +655,18 @@ const ContactsPage = () => {
               border-radius: 16px 16px 0 0;
               min-width: unset;
               padding: 16px;
-              margin: 0;
             }
-            .profile-dropdown-item {
-              padding: 14px 16px;
-            }
-            .table-responsive {
-              font-size: 12px;
-            }
-            .table td, .table th {
-              padding: 8px 6px;
-              white-space: nowrap;
-            }
-            .modal-content-mobile {
-              margin: 8px !important;
-              max-height: 95vh !important;
-            }
-            .nav-container {
-              flex-wrap: nowrap !important;
-            }
-            .nav-brand {
-              flex-shrink: 0;
-            }
-            .nav-search {
-              flex: 1;
-              min-width: 80px;
-            }
-            .nav-profile {
-              flex-shrink: 0;
-            }
+            .table td, .table th { padding: 8px 6px; white-space: nowrap; }
           }
         `}
       </style>
 
       {/* Top Navigation */}
       <nav
-        className="bg-dark border-bottom border-secondary p-2 p-sm-3 d-flex align-items-center justify-content-between sticky-top nav-container"
+        className="bg-dark border-bottom border-secondary p-2 p-sm-3 d-flex align-items-center justify-content-between sticky-top"
         style={{ zIndex: 100, gap: "8px", flexWrap: "nowrap" }}
       >
-        <div className="d-flex align-items-center gap-2 nav-brand">
+        <div className="d-flex align-items-center gap-2">
           <Share2
             size={20}
             className="text-primary"
@@ -721,7 +679,7 @@ const ContactsPage = () => {
         </div>
 
         <div
-          className="position-relative nav-search"
+          className="position-relative"
           style={{ maxWidth: "450px", width: "100%", minWidth: "100px" }}
         >
           <Search
@@ -732,21 +690,19 @@ const ContactsPage = () => {
               top: "50%",
               transform: "translateY(-50%)",
               zIndex: 2,
-              color: "#6c757d",
             }}
           />
           <input
             type="text"
             className="form-control form-control-sm"
-            placeholder="Search..."
+            placeholder="Search contacts..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             style={{
               borderRadius: "8px",
               paddingLeft: "36px",
               paddingRight: searchTerm ? "36px" : "12px",
-              paddingTop: "6px",
-              paddingBottom: "6px",
               backgroundColor: "#2a2a2a",
               color: "#ffffff",
               border: "1px solid #495057",
@@ -754,17 +710,6 @@ const ContactsPage = () => {
               height: "34px",
             }}
           />
-          <style>
-            {`
-              .form-control::placeholder {
-                color: #a0a0a0 !important;
-                opacity: 1 !important;
-              }
-              .form-control:focus::placeholder {
-                color: #c0c0c0 !important;
-              }
-            `}
-          </style>
           {searchTerm && (
             <button
               className="btn btn-sm position-absolute"
@@ -786,7 +731,7 @@ const ContactsPage = () => {
           )}
         </div>
 
-        <div className="profile-menu-container d-flex align-items-center gap-2 nav-profile">
+        <div className="profile-menu-container d-flex align-items-center gap-2">
           <span
             className="text-white d-none d-md-inline"
             style={{ fontSize: "13px", fontWeight: "500" }}
@@ -806,7 +751,6 @@ const ContactsPage = () => {
           >
             {renderUserAvatar()}
           </div>
-
           {showProfileMenu && (
             <div className="profile-dropdown">
               <button className="profile-dropdown-item" onClick={goToProfile}>
@@ -835,9 +779,7 @@ const ContactsPage = () => {
           <div>
             <h1 className="text-white fw-bold mb-1">Contacts</h1>
             <p className="text-light opacity-75 small">
-              {filteredContacts.length === 0
-                ? "No contacts found"
-                : `Manage your network and track engagement history.`}
+              {loading ? "Loading..." : `${totalElements} contacts found`}
             </p>
           </div>
           <div className="d-flex gap-2">
@@ -855,21 +797,42 @@ const ContactsPage = () => {
           </div>
         </div>
 
-        {filteredContacts.length === 0 && searchTerm && (
+        {loading ? (
+          <div className="text-center text-white p-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="bg-dark bg-opacity-50 rounded-4 border border-secondary p-5 text-center">
+            <p className="text-danger">{error}</p>
+            <button className="btn btn-primary" onClick={() => fetchContacts()}>
+              Retry
+            </button>
+          </div>
+        ) : contacts.length === 0 ? (
           <div className="bg-dark bg-opacity-50 rounded-4 border border-secondary p-5 text-center">
             <Search size={48} className="text-secondary mb-3" />
             <h4 className="text-white">No contacts found</h4>
             <p className="text-light opacity-75">
-              No results found for "
-              <strong className="text-white">{searchTerm}</strong>"
+              {searchTerm
+                ? `No results found for "${searchTerm}"`
+                : "Start by adding your first contact!"}
             </p>
-            <button className="btn btn-outline-secondary" onClick={clearSearch}>
-              Clear Search
-            </button>
+            {searchTerm ? (
+              <button
+                className="btn btn-outline-secondary"
+                onClick={clearSearch}
+              >
+                Clear Search
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={openAddModal}>
+                Add Contact
+              </button>
+            )}
           </div>
-        )}
-
-        {paginatedContacts.length > 0 && (
+        ) : (
           <div className="bg-dark bg-opacity-50 rounded-4 border border-secondary overflow-hidden">
             <div className="table-responsive">
               <table className="table table-dark table-hover mb-0">
@@ -896,7 +859,7 @@ const ContactsPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedContacts.map((contact) => (
+                  {contacts.map((contact) => (
                     <tr
                       key={contact.id}
                       className="border-bottom border-secondary"
@@ -921,13 +884,13 @@ const ContactsPage = () => {
                         className="px-3 py-3 text-white-50"
                         style={{ fontSize: "14px" }}
                       >
-                        {contact.email}
+                        {getContactEmail(contact)}
                       </td>
                       <td
                         className="px-3 py-3 text-white-50"
                         style={{ fontSize: "14px" }}
                       >
-                        {contact.phone}
+                        {getContactPhone(contact)}
                       </td>
                       <td className="px-3 py-3">
                         <div className="d-flex gap-3 justify-content-end">
@@ -962,19 +925,16 @@ const ContactsPage = () => {
 
             <div className="d-flex flex-wrap justify-content-between align-items-center p-3 border-top border-secondary gap-2">
               <span className="text-light opacity-75 small">
-                Showing {startIndex + 1}-
-                {Math.min(startIndex + itemsPerPage, filteredContacts.length)}{" "}
-                of {filteredContacts.length} contacts
+                Showing {contacts.length} of {totalElements} contacts
               </span>
               <div className="d-flex align-items-center gap-1">
                 <button
                   className="btn btn-sm btn-outline-secondary border-0 text-secondary"
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 0}
                 >
                   <ChevronLeft size={16} />
                 </button>
-
                 {getPageNumbers().map((page) => (
                   <button
                     key={page}
@@ -982,14 +942,13 @@ const ContactsPage = () => {
                     onClick={() => handlePageChange(page)}
                     style={{ minWidth: "32px" }}
                   >
-                    {page}
+                    {page + 1}
                   </button>
                 ))}
-
                 <button
                   className="btn btn-sm btn-outline-secondary border-0 text-secondary"
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages - 1}
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -999,9 +958,760 @@ const ContactsPage = () => {
         )}
       </main>
 
-      {/* ===== MODALS (Same as before, no changes needed) ===== */}
-      {/* All modals remain the same - they already have the fixes */}
-      {/* Logout Modal, Add Modal, Edit Modal, Delete Modal, View Modal */}
+      {/* ============================================ */}
+      {/* ADD CONTACT MODAL */}
+      {/* ============================================ */}
+      {showAddModal && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={closeAddModal}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary"
+            style={{
+              maxWidth: "560px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              margin: "16px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex justify-content-between align-items-center p-4 border-bottom border-secondary">
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="bg-primary rounded-3 d-flex align-items-center justify-content-center"
+                  style={{ width: "44px", height: "44px" }}
+                >
+                  <UserPlus size={22} className="text-white" />
+                </div>
+                <div>
+                  <h5 className="text-white fw-bold mb-0">Add New Contact</h5>
+                  <p className="text-light opacity-75 small mb-0">
+                    Fill in the details to create a new profile.
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                onClick={closeAddModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddSubmit}>
+              <div className="p-4">
+                <div className="row g-3 mb-3">
+                  <div className="col-6">
+                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="e.g. Ahmed"
+                      value={newContact.firstName}
+                      onChange={handleFormChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-6">
+                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="e.g. Khan"
+                      value={newContact.lastName}
+                      onChange={handleFormChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    Title
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-dark border-secondary text-secondary">
+                      <Briefcase size={18} />
+                    </span>
+                    <input
+                      type="text"
+                      name="title"
+                      className="form-control bg-dark text-white border-secondary border-start-0"
+                      placeholder="e.g. Software Engineer"
+                      value={newContact.title}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    Email Addresses
+                  </label>
+                  {newContact.emails.map((email, index) => (
+                    <div key={index} className="d-flex gap-2 mb-2 flex-wrap">
+                      <select
+                        className="form-select bg-dark text-white border-secondary"
+                        style={{ width: "120px", flexShrink: 0 }}
+                        value={email.label}
+                        onChange={(e) =>
+                          handleEmailChange(index, "label", e.target.value)
+                        }
+                      >
+                        <option value="work">Work</option>
+                        <option value="personal">Personal</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <div className="input-group flex-grow-1">
+                        <span className="input-group-text bg-dark border-secondary text-secondary">
+                          <Mail size={18} />
+                        </span>
+                        <input
+                          type="email"
+                          className="form-control bg-dark text-white border-secondary border-start-0"
+                          placeholder="ahmed.khan@email.com"
+                          value={email.value}
+                          onChange={(e) =>
+                            handleEmailChange(index, "value", e.target.value)
+                          }
+                        />
+                        {newContact.emails.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger border-secondary"
+                            onClick={() => removeEmailField(index)}
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-link text-primary text-decoration-none p-0"
+                    onClick={addEmailField}
+                  >
+                    <Plus size={16} className="me-1" /> Add Email Address
+                  </button>
+                </div>
+                <div className="mb-3">
+                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    Phone Numbers
+                  </label>
+                  {newContact.phones.map((phone, index) => (
+                    <div key={index} className="d-flex gap-2 mb-2 flex-wrap">
+                      <select
+                        className="form-select bg-dark text-white border-secondary"
+                        style={{ width: "120px", flexShrink: 0 }}
+                        value={phone.label}
+                        onChange={(e) =>
+                          handlePhoneChange(index, "label", e.target.value)
+                        }
+                      >
+                        <option value="work">Work</option>
+                        <option value="mobile">Mobile</option>
+                        <option value="home">Home</option>
+                      </select>
+                      <div className="input-group flex-grow-1">
+                        <span className="input-group-text bg-dark border-secondary text-secondary">
+                          <Phone size={18} />
+                        </span>
+                        <input
+                          type="text"
+                          className="form-control bg-dark text-white border-secondary border-start-0"
+                          placeholder="0300-1234567"
+                          value={phone.value}
+                          onChange={(e) =>
+                            handlePhoneChange(index, "value", e.target.value)
+                          }
+                        />
+                        {newContact.phones.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger border-secondary"
+                            onClick={() => removePhoneField(index)}
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-link text-primary text-decoration-none p-0"
+                    onClick={addPhoneField}
+                  >
+                    <Plus size={16} className="me-1" /> Add Phone Number
+                  </button>
+                </div>
+              </div>
+              <div className="d-flex justify-content-end gap-3 p-4 border-top border-secondary flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={closeAddModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save Contact"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* EDIT CONTACT MODAL */}
+      {/* ============================================ */}
+      {showEditModal && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={closeEditModal}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary"
+            style={{
+              maxWidth: "560px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              margin: "16px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex justify-content-between align-items-center p-4 border-bottom border-secondary">
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="bg-primary rounded-3 d-flex align-items-center justify-content-center"
+                  style={{ width: "44px", height: "44px" }}
+                >
+                  <Edit size={22} className="text-white" />
+                </div>
+                <div>
+                  <h5 className="text-white fw-bold mb-0">
+                    Edit Contact Profile
+                  </h5>
+                  <p className="text-light opacity-75 small mb-0">
+                    Update the contact information below.
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                onClick={closeEditModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit}>
+              <div className="p-4">
+                <div className="row g-3 mb-3">
+                  <div className="col-6">
+                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="e.g. Ahmed"
+                      value={editContact.firstName}
+                      onChange={handleEditChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-6">
+                    <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      className="form-control bg-dark text-white border-secondary"
+                      placeholder="e.g. Khan"
+                      value={editContact.lastName}
+                      onChange={handleEditChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    Title
+                  </label>
+                  <div className="input-group">
+                    <span className="input-group-text bg-dark border-secondary text-secondary">
+                      <Briefcase size={18} />
+                    </span>
+                    <input
+                      type="text"
+                      name="title"
+                      className="form-control bg-dark text-white border-secondary border-start-0"
+                      placeholder="e.g. Software Engineer"
+                      value={editContact.title}
+                      onChange={handleEditChange}
+                    />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    Email Addresses
+                  </label>
+                  {editContact.emails.map((email, index) => (
+                    <div key={index} className="d-flex gap-2 mb-2 flex-wrap">
+                      <select
+                        className="form-select bg-dark text-white border-secondary"
+                        style={{ width: "120px", flexShrink: 0 }}
+                        value={email.label}
+                        onChange={(e) =>
+                          handleEditEmailChange(index, "label", e.target.value)
+                        }
+                      >
+                        <option value="work">Work</option>
+                        <option value="personal">Personal</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <div className="input-group flex-grow-1">
+                        <span className="input-group-text bg-dark border-secondary text-secondary">
+                          <Mail size={18} />
+                        </span>
+                        <input
+                          type="email"
+                          className="form-control bg-dark text-white border-secondary border-start-0"
+                          placeholder="ahmed.khan@email.com"
+                          value={email.value}
+                          onChange={(e) =>
+                            handleEditEmailChange(
+                              index,
+                              "value",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {editContact.emails.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger border-secondary"
+                            onClick={() => removeEditEmailField(index)}
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-link text-primary text-decoration-none p-0"
+                    onClick={addEditEmailField}
+                  >
+                    <Plus size={16} className="me-1" /> Add Email Address
+                  </button>
+                </div>
+                <div className="mb-3">
+                  <label className="text-light opacity-75 small fw-semibold text-uppercase mb-1">
+                    Phone Numbers
+                  </label>
+                  {editContact.phones.map((phone, index) => (
+                    <div key={index} className="d-flex gap-2 mb-2 flex-wrap">
+                      <select
+                        className="form-select bg-dark text-white border-secondary"
+                        style={{ width: "120px", flexShrink: 0 }}
+                        value={phone.label}
+                        onChange={(e) =>
+                          handleEditPhoneChange(index, "label", e.target.value)
+                        }
+                      >
+                        <option value="work">Work</option>
+                        <option value="mobile">Mobile</option>
+                        <option value="home">Home</option>
+                      </select>
+                      <div className="input-group flex-grow-1">
+                        <span className="input-group-text bg-dark border-secondary text-secondary">
+                          <Phone size={18} />
+                        </span>
+                        <input
+                          type="text"
+                          className="form-control bg-dark text-white border-secondary border-start-0"
+                          placeholder="0300-1234567"
+                          value={phone.value}
+                          onChange={(e) =>
+                            handleEditPhoneChange(
+                              index,
+                              "value",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        {editContact.phones.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger border-secondary"
+                            onClick={() => removeEditPhoneField(index)}
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn-link text-primary text-decoration-none p-0"
+                    onClick={addEditPhoneField}
+                  >
+                    <Plus size={16} className="me-1" /> Add Phone Number
+                  </button>
+                </div>
+              </div>
+              <div className="d-flex justify-content-end gap-3 p-4 border-top border-secondary flex-wrap">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={closeEditModal}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* DELETE CONFIRMATION MODAL */}
+      {/* ============================================ */}
+      {showDeleteModal && deletingContact && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={closeDeleteModal}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary"
+            style={{ maxWidth: "480px", width: "100%", margin: "16px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4" style={{ borderTop: "4px solid #dc3545" }}>
+              <div className="d-flex gap-3">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center"
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    backgroundColor: "rgba(220, 53, 69, 0.15)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <AlertTriangle size={20} className="text-danger" />
+                </div>
+                <div className="flex-grow-1">
+                  <h5 className="text-white fw-bold mb-1">Delete contact?</h5>
+                  <p className="text-light opacity-75 small mb-0">
+                    Are you sure you want to delete this contact? This action
+                    cannot be undone.
+                  </p>
+                </div>
+                <button
+                  className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                  onClick={closeDeleteModal}
+                  style={{ flexShrink: 0 }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="px-4 pb-3">
+              <div className="bg-dark bg-opacity-50 rounded-3 p-3 d-flex align-items-center gap-3 border border-secondary">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    backgroundColor: deletingContact.color || "#0052cc",
+                    fontSize: "14px",
+                  }}
+                >
+                  {deletingContact.avatar ||
+                    getInitials(
+                      deletingContact.firstName,
+                      deletingContact.lastName,
+                    )}
+                </div>
+                <div>
+                  <div className="text-white fw-semibold">
+                    {deletingContact.firstName} {deletingContact.lastName}
+                  </div>
+                  <div className="text-light opacity-75 small">
+                    {getContactEmail(deletingContact)}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="d-flex justify-content-end gap-3 p-4 border-top border-secondary flex-wrap">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={closeDeleteModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDeleteConfirm}
+              >
+                Delete Contact
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* VIEW CONTACT MODAL */}
+      {/* ============================================ */}
+      {showViewModal && viewingContact && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={closeViewModal}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary"
+            style={{
+              maxWidth: "540px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              margin: "16px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex justify-content-between align-items-center p-4 border-bottom border-secondary">
+              <h5 className="text-white fw-bold mb-0">Contact Information</h5>
+              <button
+                className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                onClick={closeViewModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="text-center p-4">
+              <div className="position-relative d-inline-block">
+                <div
+                  className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                  style={{
+                    width: "110px",
+                    height: "110px",
+                    backgroundColor: viewingContact.color || "#0052cc",
+                    fontSize: "32px",
+                    border: "3px solid #1a1a2e",
+                  }}
+                >
+                  {viewingContact.avatar ||
+                    getInitials(
+                      viewingContact.firstName,
+                      viewingContact.lastName,
+                    )}
+                </div>
+                <span
+                  className="position-absolute bottom-0 end-0 rounded-circle border border-dark"
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    backgroundColor: "#22c55e",
+                    borderWidth: "3px",
+                  }}
+                ></span>
+              </div>
+              <h2 className="text-white fw-bold mt-3 mb-1">
+                {viewingContact.firstName} {viewingContact.lastName}
+              </h2>
+              <p className="text-primary fw-medium">{viewingContact.title}</p>
+            </div>
+            <div className="px-4 pb-4">
+              <hr className="border-secondary" />
+              <div className="mb-3">
+                <h6 className="text-secondary text-uppercase small fw-bold mb-2">
+                  Email Addresses
+                </h6>
+                {(
+                  viewingContact.emails || [
+                    { label: "work", value: getContactEmail(viewingContact) },
+                  ]
+                ).map((email, index) => (
+                  <div
+                    key={index}
+                    className="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25"
+                  >
+                    <div>
+                      <div className="text-secondary text-uppercase small fw-bold">
+                        {email.label}
+                      </div>
+                      <div className="text-white">{email.value}</div>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                      onClick={() =>
+                        copyToClipboard(email.value, `${email.label} email`)
+                      }
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mb-3">
+                <h6 className="text-secondary text-uppercase small fw-bold mb-2">
+                  Phone Numbers
+                </h6>
+                {(
+                  viewingContact.phones || [
+                    { label: "work", value: getContactPhone(viewingContact) },
+                  ]
+                ).map((phone, index) => (
+                  <div
+                    key={index}
+                    className="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary border-opacity-25"
+                  >
+                    <div>
+                      <div className="text-secondary text-uppercase small fw-bold">
+                        {phone.label}
+                      </div>
+                      <div className="text-white">{phone.value}</div>
+                    </div>
+                    <button
+                      className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                      onClick={() =>
+                        copyToClipboard(phone.value, `${phone.label} phone`)
+                      }
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="d-flex justify-content-end gap-3 p-4 border-top border-secondary flex-wrap">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={closeViewModal}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  closeViewModal();
+                  openEditModal(viewingContact);
+                }}
+              >
+                <Edit size={16} className="me-1" /> Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* LOGOUT CONFIRMATION MODAL */}
+      {/* ============================================ */}
+      {showLogoutModal && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={closeLogoutModal}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary p-4 text-center"
+            style={{ maxWidth: "460px", width: "100%", margin: "16px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="btn btn-sm btn-outline-secondary border-0 text-secondary position-absolute"
+              onClick={closeLogoutModal}
+              style={{ top: "20px", right: "20px" }}
+            >
+              <X size={20} />
+            </button>
+            <div
+              className="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3"
+              style={{
+                width: "56px",
+                height: "56px",
+                backgroundColor: "rgba(220, 53, 69, 0.15)",
+              }}
+            >
+              <LogOut size={24} className="text-danger" />
+            </div>
+            <h4 className="fw-bold text-white mb-2">Log Out</h4>
+            <p className="text-light opacity-75 small mb-4">
+              Are you sure you want to log out of your account?
+            </p>
+            <div className="d-flex gap-3 justify-content-center flex-wrap">
+              <button
+                type="button"
+                className="btn btn-outline-secondary px-4"
+                onClick={closeLogoutModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger px-4"
+                onClick={handleLogout}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="text-center py-4">

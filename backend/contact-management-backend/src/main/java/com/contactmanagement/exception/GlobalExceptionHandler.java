@@ -1,6 +1,7 @@
 package com.contactmanagement.exception;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -120,5 +121,23 @@ public class GlobalExceptionHandler {
         // Unknown data integrity issue - let it go to generic handler
         log.error("Unexpected data integrity violation: {}", ex.getMessage(), ex);
         throw ex; // Re-throw for generic handler
+    }
+
+    @ExceptionHandler(ContactNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleContactNotFound(
+            ContactNotFoundException ex) {
+        log.warn("Contact not found: {}", ex.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<Map<String, String>> handlePropertyReferenceException(
+            PropertyReferenceException ex) {
+        log.warn("Invalid sort property: {}", ex.getMessage());
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Invalid sort parameter. Please use: firstName, lastName, title, createdAt");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 }

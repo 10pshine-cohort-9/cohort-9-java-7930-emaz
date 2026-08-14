@@ -215,4 +215,40 @@ public class ContactService {
         contactRepository.delete(contact);
         log.info("Contact deleted successfully with id: {}", id);
     }
+
+    @Transactional(readOnly = true)
+    public String exportContactsToCSV() {
+        log.info("Exporting contacts to CSV for current user");
+        User user = getCurrentUser();
+        List<Contact> contacts = contactRepository.findByUserId(user.getId());
+
+        StringBuilder csv = new StringBuilder();
+
+        // Add CSV header
+        csv.append("First Name,Last Name,Title,Email,Phone\n");
+
+        // Add each contact as a row
+        for (Contact contact : contacts) {
+            String email = contact.getEmails().isEmpty() ? "" : contact.getEmails().get(0).getValue();
+            String phone = contact.getPhones().isEmpty() ? "" : contact.getPhones().get(0).getValue();
+
+            csv.append(escapeCSV(contact.getFirstName())).append(",")
+                    .append(escapeCSV(contact.getLastName())).append(",")
+                    .append(escapeCSV(contact.getTitle() != null ? contact.getTitle() : "")).append(",")
+                    .append(escapeCSV(email)).append(",")
+                    .append(escapeCSV(phone)).append("\n");
+        }
+
+        log.info("Exported {} contacts to CSV", contacts.size());
+        return csv.toString();
+    }
+
+    private String escapeCSV(String value) {
+        if (value == null) return "";
+        // If value contains comma, quotes, or newline, wrap in quotes
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
 }

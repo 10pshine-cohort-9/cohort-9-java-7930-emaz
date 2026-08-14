@@ -11,7 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -71,5 +73,25 @@ public class ContactController {
         log.info("Received request to delete contact with id: {}", id);
         contactService.deleteContact(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportContacts() {
+        log.info("Received request to export contacts");
+
+        try {
+            String csv = contactService.exportContactsToCSV();
+            byte[] csvBytes = csv.getBytes();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.TEXT_PLAIN);
+            headers.setContentDispositionFormData("attachment", "contacts.csv");
+            headers.setContentLength(csvBytes.length);
+
+            return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("Failed to export contacts: {}", e.getMessage());
+            throw new RuntimeException("Failed to export contacts");
+        }
     }
 }

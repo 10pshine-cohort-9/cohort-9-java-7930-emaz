@@ -9,13 +9,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface ContactRepository extends JpaRepository<Contact, Long> {
 
-    // Remove EntityGraph temporarily to test
+    // For paginated results
     Page<Contact> findByUserId(Long userId, Pageable pageable);
 
-    // Remove EntityGraph temporarily to test
+    // For list results
+    List<Contact> findByUserId(Long userId);
+
     @Query("SELECT c FROM Contact c WHERE c.user.id = :userId AND " +
             "(LOWER(c.firstName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
             "LOWER(c.lastName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +

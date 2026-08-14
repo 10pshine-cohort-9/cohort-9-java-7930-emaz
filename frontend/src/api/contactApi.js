@@ -33,3 +33,10 @@ export const updateContact = (id, contactData) => {
 export const deleteContact = (id) => {
   return axios.delete(`/contacts/${id}`);
 };
+
+// Export contacts as CSV file
+export const exportContacts = () => {
+  return axios.get('/contacts/export', {
+    responseType: 'blob'
+  });
+};

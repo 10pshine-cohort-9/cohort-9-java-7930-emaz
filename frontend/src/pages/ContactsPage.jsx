@@ -26,6 +26,7 @@ import {
   createContact,
   updateContact,
   deleteContact,
+  exportContacts,
 } from "../api/contactApi";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -420,6 +421,27 @@ const ContactsPage = () => {
         phones: editContact.phones.filter((p) => p.value.trim()),
       });
 
+      // ========== EXPORT HANDLER ==========
+      const handleExport = async () => {
+        try {
+          const response = await exportContacts();
+
+          // Create download link
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", "contacts.csv");
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+
+          showToastMessage("Contacts exported successfully!", "success");
+        } catch (err) {
+          showToastMessage("Failed to export contacts", "danger");
+        }
+      };
+
       showToastMessage(
         `${editContact.firstName} ${editContact.lastName} updated successfully!`,
         "success",
@@ -805,7 +827,10 @@ const ContactsPage = () => {
             </p>
           </div>
           <div className="d-flex gap-2">
-            <button className="btn btn-outline-secondary d-flex align-items-center gap-2">
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center gap-2"
+              onClick={handleExport}
+            >
               <Download size={16} />
               Export
             </button>

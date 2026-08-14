@@ -409,6 +409,27 @@ const ContactsPage = () => {
     }
   };
 
+  // ========== EXPORT HANDLER ==========
+  const handleExport = async () => {
+    try {
+      const response = await exportContacts();
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "contacts.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showToastMessage("Contacts exported successfully!", "success");
+    } catch (err) {
+      showToastMessage("Failed to export contacts", "danger");
+    }
+  };
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -420,27 +441,6 @@ const ContactsPage = () => {
         emails: editContact.emails.filter((e) => e.value.trim()),
         phones: editContact.phones.filter((p) => p.value.trim()),
       });
-
-      // ========== EXPORT HANDLER ==========
-      const handleExport = async () => {
-        try {
-          const response = await exportContacts();
-
-          // Create download link
-          const url = window.URL.createObjectURL(new Blob([response.data]));
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", "contacts.csv");
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-
-          showToastMessage("Contacts exported successfully!", "success");
-        } catch (err) {
-          showToastMessage("Failed to export contacts", "danger");
-        }
-      };
 
       showToastMessage(
         `${editContact.firstName} ${editContact.lastName} updated successfully!`,

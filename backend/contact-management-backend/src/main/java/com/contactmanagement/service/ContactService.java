@@ -224,19 +224,24 @@ public class ContactService {
 
         StringBuilder csv = new StringBuilder();
 
-        // Add CSV header
-        csv.append("First Name,Last Name,Title,Email,Phone\n");
+        csv.append("First Name,Last Name,Title,Emails,Phones\n");
 
-        // Add each contact as a row
         for (Contact contact : contacts) {
-            String email = contact.getEmails().isEmpty() ? "" : contact.getEmails().get(0).getValue();
-            String phone = contact.getPhones().isEmpty() ? "" : contact.getPhones().get(0).getValue();
+            // Collect all emails
+            String emails = contact.getEmails().stream()
+                    .map(e -> e.getLabel() + ":" + e.getValue())
+                    .collect(Collectors.joining("; "));
+
+            // Collect all phones
+            String phones = contact.getPhones().stream()
+                    .map(p -> p.getLabel() + ":" + p.getValue())
+                    .collect(Collectors.joining("; "));
 
             csv.append(escapeCSV(contact.getFirstName())).append(",")
                     .append(escapeCSV(contact.getLastName())).append(",")
                     .append(escapeCSV(contact.getTitle() != null ? contact.getTitle() : "")).append(",")
-                    .append(escapeCSV(email)).append(",")
-                    .append(escapeCSV(phone)).append("\n");
+                    .append(escapeCSV(emails)).append(",")
+                    .append(escapeCSV(phones)).append("\n");
         }
 
         log.info("Exported {} contacts to CSV", contacts.size());

@@ -48,6 +48,7 @@ const ContactsPage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [deletingContact, setDeletingContact] = useState(null);
   const [viewingContact, setViewingContact] = useState(null);
@@ -55,7 +56,6 @@ const ContactsPage = () => {
   const [toastType, setToastType] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
@@ -156,6 +156,7 @@ const ContactsPage = () => {
   // Load contacts on mount
   useEffect(() => {
     fetchContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ========== TOAST ==========
@@ -548,88 +549,6 @@ const ContactsPage = () => {
     setShowViewModal(false);
     setViewingContact(null);
   };
-
-  // ---------- IMPORT MODAL -----------
-
-  {
-    showImportModal && (
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="import-modal-title"
-        className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-        style={{
-          zIndex: 1050,
-          backgroundColor: "rgba(0,0,0,0.7)",
-          backdropFilter: "blur(4px)",
-        }}
-        onClick={() => setShowImportModal(false)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") setShowImportModal(false);
-        }}
-      >
-        <div
-          className="bg-dark rounded-4 border border-secondary p-4"
-          style={{ maxWidth: "500px", width: "100%", margin: "16px" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h5 id="import-modal-title" className="text-white fw-bold mb-0">
-              Import Contacts
-            </h5>
-            <button
-              className="btn btn-sm btn-outline-secondary border-0 text-secondary"
-              onClick={() => setShowImportModal(false)}
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <p className="text-light opacity-75 small mb-3">
-            Upload a CSV file to import contacts. The file should have columns:
-            First Name, Last Name, Title, Email, Phone.
-          </p>
-
-          <div className="mb-4">
-            <label className="text-light opacity-75 small fw-semibold text-uppercase mb-2 d-block">
-              Select CSV File
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="form-control bg-dark text-white border-secondary"
-              accept=".csv"
-              onChange={handleFileChange}
-            />
-            {selectedFile && (
-              <p className="text-light small mt-2">
-                Selected:{" "}
-                <span className="text-primary">{selectedFile.name}</span>
-              </p>
-            )}
-          </div>
-
-          <div className="d-flex gap-3 justify-content-end">
-            <button
-              type="button"
-              className="btn btn-outline-secondary"
-              onClick={() => setShowImportModal(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleImport}
-              disabled={!selectedFile || importing}
-            >
-              {importing ? "Importing..." : "Import Contacts"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ========== COPY TO CLIPBOARD ==========
   const copyToClipboard = (text, label) => {
@@ -1202,7 +1121,6 @@ const ContactsPage = () => {
             </div>
             <form onSubmit={handleAddSubmit}>
               <div className="p-4">
-                {/* Form fields same as before */}
                 <div className="row g-3 mb-3">
                   <div className="col-6">
                     <label
@@ -1784,7 +1702,6 @@ const ContactsPage = () => {
                 <X size={20} />
               </button>
             </div>
-            {/* View modal content - same as before */}
             <div className="text-center p-4">
               <div className="position-relative d-inline-block">
                 <div
@@ -1898,6 +1815,87 @@ const ContactsPage = () => {
                 }}
               >
                 <Edit size={16} className="me-1" /> Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* IMPORT CONTACT MODAL - MOVED HERE */}
+      {/* ============================================ */}
+      {showImportModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="import-modal-title"
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setShowImportModal(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowImportModal(false);
+          }}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary p-4"
+            style={{ maxWidth: "500px", width: "100%", margin: "16px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h5 id="import-modal-title" className="text-white fw-bold mb-0">
+                Import Contacts
+              </h5>
+              <button
+                className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                onClick={() => setShowImportModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-light opacity-75 small mb-3">
+              Upload a CSV file to import contacts. The file should have
+              columns: First Name, Last Name, Title, Email, Phone.
+            </p>
+
+            <div className="mb-4">
+              <label className="text-light opacity-75 small fw-semibold text-uppercase mb-2 d-block">
+                Select CSV File
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="form-control bg-dark text-white border-secondary"
+                accept=".csv"
+                onChange={handleFileChange}
+              />
+              {selectedFile && (
+                <p className="text-light small mt-2">
+                  Selected:{" "}
+                  <span className="text-primary">{selectedFile.name}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="d-flex gap-3 justify-content-end">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => setShowImportModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleImport}
+                disabled={!selectedFile || importing}
+              >
+                {importing ? "Importing..." : "Import Contacts"}
               </button>
             </div>
           </div>

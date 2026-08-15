@@ -2,6 +2,7 @@ package com.contactmanagement.controller;
 
 import com.contactmanagement.dto.request.ContactRequest;
 import com.contactmanagement.dto.response.ContactResponse;
+import com.contactmanagement.dto.response.ImportResult;
 import com.contactmanagement.service.ContactService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/contacts")
@@ -93,5 +95,22 @@ public class ContactController {
             log.error("Failed to export contacts: {}", e.getMessage());
             throw new RuntimeException("Failed to export contacts");
         }
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<ImportResult> importContacts(@RequestParam("file") MultipartFile file) {
+        log.info("Received request to import contacts from file: {}", file.getOriginalFilename());
+
+        if (file.isEmpty()) {
+            throw new RuntimeException("Please select a file to upload");
+        }
+
+        String fileName = file.getOriginalFilename();
+        if (fileName == null || !fileName.endsWith(".csv")) {
+            throw new RuntimeException("Please upload a CSV file");
+        }
+
+        ImportResult result = contactService.importContactsFromCSV(file);
+        return ResponseEntity.ok(result);
     }
 }

@@ -2,6 +2,7 @@ package com.contactmanagement.service;
 
 import com.contactmanagement.dto.request.ContactRequest;
 import com.contactmanagement.dto.response.ContactResponse;
+import com.contactmanagement.dto.response.ImportResult;
 import com.contactmanagement.entity.Contact;
 import com.contactmanagement.entity.ContactEmail;
 import com.contactmanagement.entity.ContactPhone;
@@ -18,7 +19,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -255,5 +260,92 @@ public class ContactService {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;
+    }
+
+    @Transactional
+    public ImportResult importContactsFromCSV(MultipartFile file) {
+        log.info("Importing contacts from CSV file: {}", file.getOriginalFilename());
+        User user = getCurrentUser();
+
+        int successCount = 0;
+        int failureCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
+            String line = reader.readLine(); // Skip header
+
+            while ((line = reader.readLine()) != null) {
+                try {
+                    String[] fields = parseCSVLine(line);
+                    if (fields.length < 5) {
+                        errors.add("Invalid row: " + line);
+                        failureCount++;
+                        continue;
+                    }
+
+                    // Create contact
+                    Contact contact = new Contact();
+                    contact.setFirstName(fields[0].trim());
+                    contact.setLastName(fields[1].trim());
+                    contact.setTitle(fields[2].trim());
+                    contact.setUser(user);
+
+                    // Add email
+                    if (!fields[3].trim().isEmpty()) {
+                        ContactEmail email = new ContactEmail();
+                        email.setLabel("work");
+                        email.setValue(fields[3].trim());
+                        email.setContact(contact);
+                        contact.getEmails().add(email);
+                    }
+
+                    // Add phone
+                    if (!fields[4].trim().isEmpty()) {
+                        ContactPhone phone = new ContactPhone();
+                        phone.setLabel("work");
+                        phone.setValue(fields[4].trim());
+                        phone.setContact(contact);
+                        contact.getPhones().add(phone);
+                    }
+
+                    contactRepository.save(contact);
+                    successCount++;
+
+                } catch (Exception e) {
+                    log.error("Failed to import row: {}", line, e);
+                    errors.add("Failed to import: " + line);
+                    failureCount++;
+                }
+            }
+
+            reader.close();
+
+        } catch (Exception e) {
+            log.error("Failed to import contacts", e);
+            throw new RuntimeException("Failed to import contacts: " + e.getMessage());
+        }
+
+        log.info("Imported {} contacts successfully, {} failed", successCount, failureCount);
+        return new ImportResult(successCount, failureCount, errors);
+    }
+
+    private String[] parseCSVLine(String line) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (char c : line.toCharArray()) {
+            if (c == '"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                result.add(current.toString().trim());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        result.add(current.toString().trim());
+        return result.toArray(new String[0]);
     }
 }

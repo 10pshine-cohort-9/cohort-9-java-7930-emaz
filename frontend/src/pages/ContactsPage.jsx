@@ -6,6 +6,7 @@ import {
   Trash2,
   Plus,
   Download,
+  Upload,
   ChevronLeft,
   ChevronRight,
   User,
@@ -27,6 +28,7 @@ import {
   updateContact,
   deleteContact,
   exportContacts,
+  importContacts,
 } from "../api/contactApi";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -53,6 +55,10 @@ const ContactsPage = () => {
   const [toastType, setToastType] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Refs for modal focus
   const addModalRef = useRef(null);
@@ -430,6 +436,51 @@ const ContactsPage = () => {
     }
   };
 
+  // ========== IMPORT HANDLER ==========
+  const handleImport = async () => {
+    if (!selectedFile) {
+      showToastMessage("Please select a file to import", "danger");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const response = await importContacts(selectedFile);
+      const data = response.data;
+
+      showToastMessage(
+        `Imported ${data.successCount} contacts, ${data.failureCount} failed`,
+        data.failureCount > 0 ? "warning" : "success",
+      );
+
+      setShowImportModal(false);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      fetchContacts();
+    } catch (err) {
+      showToastMessage(
+        err.response?.data?.message || "Failed to import contacts",
+        "danger",
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.name.endsWith(".csv")) {
+        showToastMessage("Please select a CSV file", "danger");
+        e.target.value = "";
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -497,6 +548,88 @@ const ContactsPage = () => {
     setShowViewModal(false);
     setViewingContact(null);
   };
+
+  // ---------- IMPORT MODAL -----------
+
+  {
+    showImportModal && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-modal-title"
+        className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+        style={{
+          zIndex: 1050,
+          backgroundColor: "rgba(0,0,0,0.7)",
+          backdropFilter: "blur(4px)",
+        }}
+        onClick={() => setShowImportModal(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setShowImportModal(false);
+        }}
+      >
+        <div
+          className="bg-dark rounded-4 border border-secondary p-4"
+          style={{ maxWidth: "500px", width: "100%", margin: "16px" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h5 id="import-modal-title" className="text-white fw-bold mb-0">
+              Import Contacts
+            </h5>
+            <button
+              className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+              onClick={() => setShowImportModal(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <p className="text-light opacity-75 small mb-3">
+            Upload a CSV file to import contacts. The file should have columns:
+            First Name, Last Name, Title, Email, Phone.
+          </p>
+
+          <div className="mb-4">
+            <label className="text-light opacity-75 small fw-semibold text-uppercase mb-2 d-block">
+              Select CSV File
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="form-control bg-dark text-white border-secondary"
+              accept=".csv"
+              onChange={handleFileChange}
+            />
+            {selectedFile && (
+              <p className="text-light small mt-2">
+                Selected:{" "}
+                <span className="text-primary">{selectedFile.name}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="d-flex gap-3 justify-content-end">
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => setShowImportModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleImport}
+              disabled={!selectedFile || importing}
+            >
+              {importing ? "Importing..." : "Import Contacts"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ========== COPY TO CLIPBOARD ==========
   const copyToClipboard = (text, label) => {
@@ -833,6 +966,13 @@ const ContactsPage = () => {
             >
               <Download size={16} />
               Export
+            </button>
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center gap-2"
+              onClick={() => setShowImportModal(true)}
+            >
+              <Upload size={16} />
+              Import
             </button>
             <button
               className="btn btn-primary d-flex align-items-center gap-2"

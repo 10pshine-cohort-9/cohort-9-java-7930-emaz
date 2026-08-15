@@ -40,3 +40,15 @@ export const exportContacts = () => {
     responseType: 'blob'
   });
 };
+
+// Import contacts from CSV file
+export const importContacts = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return axios.post('/contacts/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};

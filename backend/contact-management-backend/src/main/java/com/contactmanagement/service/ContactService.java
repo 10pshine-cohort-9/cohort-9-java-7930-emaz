@@ -2,6 +2,7 @@ package com.contactmanagement.service;
 
 import com.contactmanagement.dto.request.ContactRequest;
 import com.contactmanagement.dto.response.ContactResponse;
+import com.contactmanagement.dto.response.ImportResult;
 import com.contactmanagement.entity.Contact;
 import com.contactmanagement.entity.ContactEmail;
 import com.contactmanagement.entity.ContactPhone;
@@ -18,7 +19,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -214,5 +219,173 @@ public class ContactService {
 
         contactRepository.delete(contact);
         log.info("Contact deleted successfully with id: {}", id);
+    }
+
+    @Transactional(readOnly = true)
+    public String exportContactsToCSV() {
+        log.info("Exporting contacts to CSV for current user");
+        User user = getCurrentUser();
+        List<Contact> contacts = contactRepository.findByUserId(user.getId());
+
+        StringBuilder csv = new StringBuilder();
+
+        // Header with all fields
+        csv.append("First Name,Last Name,Title,Email (Label:Value),Phone (Label:Value)\n");
+
+        for (Contact contact : contacts) {
+            // Format: label:value; label:value
+            String emails = contact.getEmails().stream()
+                    .map(e -> e.getLabel() + ":" + e.getValue())
+                    .collect(Collectors.joining("; "));
+
+            String phones = contact.getPhones().stream()
+                    .map(p -> p.getLabel() + ":" + p.getValue())
+                    .collect(Collectors.joining("; "));
+
+            csv.append(escapeCSV(contact.getFirstName())).append(",")
+                    .append(escapeCSV(contact.getLastName())).append(",")
+                    .append(escapeCSV(contact.getTitle() != null ? contact.getTitle() : "")).append(",")
+                    .append(escapeCSV(emails)).append(",")
+                    .append(escapeCSV(phones)).append("\n");
+        }
+
+        log.info("Exported {} contacts to CSV", contacts.size());
+        return csv.toString();
+    }
+
+    private String escapeCSV(String value) {
+        if (value == null) return "";
+
+        String trimmed = value.trim();
+        if (trimmed.startsWith("=") || trimmed.startsWith("+") ||
+                trimmed.startsWith("-") || trimmed.startsWith("@")) {
+            value = "'" + value;
+        }
+
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    @Transactional
+    public ImportResult importContactsFromCSV(MultipartFile file) {
+        log.info("Importing contacts from CSV file: {}", file.getOriginalFilename());
+        User user = getCurrentUser();
+
+        int successCount = 0;
+        int failureCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line = reader.readLine();
+
+            int rowNumber = 1;
+            while ((line = reader.readLine()) != null) {
+                rowNumber++;
+                try {
+                    String[] fields = parseCSVLine(line);
+                    if (fields.length < 5) {
+                        errors.add("Row " + rowNumber + ": Invalid format (expected 5 columns)");
+                        failureCount++;
+                        continue;
+                    }
+
+                    Contact contact = new Contact();
+                    contact.setFirstName(fields[0].trim());
+                    contact.setLastName(fields[1].trim());
+                    contact.setTitle(fields[2].trim());
+                    contact.setUser(user);
+
+                    // Parse emails: label:value; label:value
+                    if (!fields[3].trim().isEmpty()) {
+                        String[] emailParts = fields[3].split(";");
+                        boolean hasValidEmail = false;
+                        for (String part : emailParts) {
+                            String trimmedPart = part.trim();
+                            if (trimmedPart.isEmpty()) {
+                                continue;
+                            }
+                            String[] kv = trimmedPart.split(":", 2);
+                            if (kv.length == 2 && !kv[0].trim().isEmpty() && !kv[1].trim().isEmpty()) {
+                                ContactEmail email = new ContactEmail();
+                                email.setLabel(kv[0].trim());
+                                email.setValue(kv[1].trim());
+                                email.setContact(contact);
+                                contact.getEmails().add(email);
+                                hasValidEmail = true;
+                            } else {
+                                // Malformed entry - reject the whole row
+                                throw new IllegalArgumentException("Malformed email format: '" + trimmedPart + "'. Expected format: label:value");
+                            }
+                        }
+                        if (!hasValidEmail) {
+                            throw new IllegalArgumentException("No valid email entries found");
+                        }
+                    }
+
+                    // Parse phones: label:value; label:value
+                    if (!fields[4].trim().isEmpty()) {
+                        String[] phoneParts = fields[4].split(";");
+                        boolean hasValidPhone = false;
+                        for (String part : phoneParts) {
+                            String trimmedPart = part.trim();
+                            if (trimmedPart.isEmpty()) {
+                                continue;
+                            }
+                            String[] kv = trimmedPart.split(":", 2);
+                            if (kv.length == 2 && !kv[0].trim().isEmpty() && !kv[1].trim().isEmpty()) {
+                                ContactPhone phone = new ContactPhone();
+                                phone.setLabel(kv[0].trim());
+                                phone.setValue(kv[1].trim());
+                                phone.setContact(contact);
+                                contact.getPhones().add(phone);
+                                hasValidPhone = true;
+                            } else {
+                                // Malformed entry - reject the whole row
+                                throw new IllegalArgumentException("Malformed phone format: '" + trimmedPart + "'. Expected format: label:value");
+                            }
+                        }
+                        if (!hasValidPhone) {
+                            throw new IllegalArgumentException("No valid phone entries found");
+                        }
+                    }
+
+                    contactRepository.save(contact);
+                    successCount++;
+
+                } catch (Exception e) {
+                    log.error("Failed to import row {}: {}", rowNumber, e.getMessage());
+                    errors.add("Row " + rowNumber + ": " + e.getMessage());
+                    failureCount++;
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to import contacts", e);
+            throw new RuntimeException("Failed to import contacts: " + e.getMessage());
+        }
+
+        log.info("Imported {} contacts successfully, {} failed", successCount, failureCount);
+        return new ImportResult(successCount, failureCount, errors);
+    }
+
+    private String[] parseCSVLine(String line) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (char c : line.toCharArray()) {
+            if (c == '"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                result.add(current.toString().trim());
+                current = new StringBuilder();
+            } else {
+                current.append(c);
+            }
+        }
+        result.add(current.toString().trim());
+        return result.toArray(new String[0]);
     }
 }

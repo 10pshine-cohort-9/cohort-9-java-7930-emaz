@@ -70,7 +70,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgumentException(
             IllegalArgumentException ex) {
-
         log.warn("Bad request: {}", ex.getMessage());
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());

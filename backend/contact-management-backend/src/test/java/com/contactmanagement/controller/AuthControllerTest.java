@@ -5,6 +5,7 @@ import com.contactmanagement.dto.request.RegisterRequest;
 import com.contactmanagement.dto.response.AuthResponse;
 import com.contactmanagement.dto.response.LoginResponse;
 import com.contactmanagement.exception.DuplicateResourceException;
+import com.contactmanagement.exception.InvalidCredentialsException;
 import com.contactmanagement.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -139,7 +140,7 @@ class AuthControllerTest {
         request.setPassword("wrongpassword");
 
         when(authService.login(any(LoginRequest.class)))
-                .thenThrow(new RuntimeException("Invalid email or password"));
+                .thenThrow(new InvalidCredentialsException("Invalid email/phone or password"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -6,6 +6,7 @@ import {
   Trash2,
   Plus,
   Download,
+  Upload,
   ChevronLeft,
   ChevronRight,
   User,
@@ -26,6 +27,8 @@ import {
   createContact,
   updateContact,
   deleteContact,
+  exportContacts,
+  importContacts,
 } from "../api/contactApi";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -45,6 +48,7 @@ const ContactsPage = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
   const [deletingContact, setDeletingContact] = useState(null);
   const [viewingContact, setViewingContact] = useState(null);
@@ -52,6 +56,10 @@ const ContactsPage = () => {
   const [toastType, setToastType] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
+  const importModalRef = useRef(null);
 
   // Refs for modal focus
   const addModalRef = useRef(null);
@@ -149,6 +157,7 @@ const ContactsPage = () => {
   // Load contacts on mount
   useEffect(() => {
     fetchContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ========== TOAST ==========
@@ -405,6 +414,81 @@ const ContactsPage = () => {
     if (editContact.phones.length > 1) {
       const updatedPhones = editContact.phones.filter((_, i) => i !== index);
       setEditContact({ ...editContact, phones: updatedPhones });
+    }
+  };
+
+  // ========== EXPORT HANDLER ==========
+  const handleExport = async () => {
+    try {
+      const response = await exportContacts();
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "contacts.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showToastMessage("Contacts exported successfully!", "success");
+    } catch (err) {
+      showToastMessage("Failed to export contacts", "danger");
+    }
+  };
+
+  // ========== IMPORT HANDLER ==========
+  const handleImport = async () => {
+    if (!selectedFile) {
+      showToastMessage("Please select a file to import", "danger");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const response = await importContacts(selectedFile);
+      const data = response.data;
+
+      showToastMessage(
+        `Imported ${data.successCount} contacts, ${data.failureCount} failed`,
+        data.failureCount > 0 ? "warning" : "success",
+      );
+
+      closeImportModal();
+      fetchContacts();
+    } catch (err) {
+      showToastMessage(
+        err.response?.data?.message || "Failed to import contacts",
+        "danger",
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.name.endsWith(".csv")) {
+        showToastMessage("Please select a CSV file", "danger");
+        e.target.value = "";
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const closeImportModal = () => {
+    if (importing) {
+      showToastMessage("Import in progress, please wait...", "warning");
+      return;
+    }
+    setShowImportModal(false);
+    setSelectedFile(null);
+    setImporting(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -805,9 +889,19 @@ const ContactsPage = () => {
             </p>
           </div>
           <div className="d-flex gap-2">
-            <button className="btn btn-outline-secondary d-flex align-items-center gap-2">
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center gap-2"
+              onClick={handleExport}
+            >
               <Download size={16} />
               Export
+            </button>
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center gap-2"
+              onClick={() => setShowImportModal(true)}
+            >
+              <Upload size={16} />
+              Import
             </button>
             <button
               className="btn btn-primary d-flex align-items-center gap-2"
@@ -1037,7 +1131,6 @@ const ContactsPage = () => {
             </div>
             <form onSubmit={handleAddSubmit}>
               <div className="p-4">
-                {/* Form fields same as before */}
                 <div className="row g-3 mb-3">
                   <div className="col-6">
                     <label
@@ -1619,7 +1712,6 @@ const ContactsPage = () => {
                 <X size={20} />
               </button>
             </div>
-            {/* View modal content - same as before */}
             <div className="text-center p-4">
               <div className="position-relative d-inline-block">
                 <div
@@ -1739,6 +1831,104 @@ const ContactsPage = () => {
         </div>
       )}
 
+      {/* ============================================ */}
+      {/* IMPORT CONTACT MODAL */}
+      {/* ============================================ */}
+      {showImportModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="import-modal-title"
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 1050,
+            backgroundColor: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+            cursor: importing ? "wait" : "default",
+          }}
+          onClick={importing ? undefined : closeImportModal}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !importing) closeImportModal();
+          }}
+        >
+          <div
+            className="bg-dark rounded-4 border border-secondary p-4"
+            style={{
+              maxWidth: "500px",
+              width: "100%",
+              margin: "16px",
+              opacity: importing ? 0.7 : 1,
+              pointerEvents: importing ? "none" : "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h5 id="import-modal-title" className="text-white fw-bold mb-0">
+                Import Contacts
+              </h5>
+              <button
+                className="btn btn-sm btn-outline-secondary border-0 text-secondary"
+                onClick={closeImportModal}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-light opacity-75 small mb-3">
+              Upload a CSV file to import contacts. The file should have
+              columns: First Name, Last Name, Title, Email, Phone.
+            </p>
+
+            <div className="mb-4">
+              <label className="text-light opacity-75 small fw-semibold text-uppercase mb-2 d-block">
+                Select CSV File
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="form-control bg-dark text-white border-secondary"
+                accept=".csv"
+                onChange={handleFileChange}
+              />
+              {selectedFile && (
+                <p className="text-light small mt-2">
+                  Selected:{" "}
+                  <span className="text-primary">{selectedFile.name}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="d-flex gap-3 justify-content-end">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={closeImportModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleImport}
+                disabled={!selectedFile || importing}
+              >
+                {importing ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    Importing...
+                  </>
+                ) : (
+                  "Import Contacts"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ============================================ */}
       {/* LOGOUT CONFIRMATION MODAL */}
       {/* ============================================ */}

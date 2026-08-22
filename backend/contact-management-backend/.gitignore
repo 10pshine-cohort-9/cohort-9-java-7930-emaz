@@ -31,3 +31,20 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Logs ###
+*.log
+logs/
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### SonarQube ###
+.sonar/
+scanner-report/
+
+### Backup ###
+*.tmp
+*.bak
+*.swp

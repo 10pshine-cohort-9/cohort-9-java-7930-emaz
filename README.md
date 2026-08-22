@@ -132,22 +132,70 @@ The project follows a standard Maven structure for the backend and a React struc
 backend/
 ├── src/
 │   ├── main/
-│   │   ├── java/com/contactmanagement/
-│   │   │   ├── config/
-│   │   │   ├── controller/
-│   │   │   ├── dto/
-│   │   │   ├── entity/
-│   │   │   ├── enums/
-│   │   │   ├── exception/
-│   │   │   ├── repository/
-│   │   │   ├── security/
-│   │   │   └── service/
+│   │   ├── java/
+│   │   │   └── com/
+│   │   │       └── contactmanagement/
+│   │   │           ├── config/
+│   │   │           │   ├── CorsConfig.java
+│   │   │           │   └── SecurityConfig.java
+│   │   │           ├── controller/
+│   │   │           │   ├── AuthController.java
+│   │   │           │   ├── ContactController.java
+│   │   │           │   └── UserController.java
+│   │   │           ├── dto/
+│   │   │           │   ├── request/
+│   │   │           │   │   ├── ChangePasswordRequest.java
+│   │   │           │   │   ├── ContactRequest.java
+│   │   │           │   │   ├── LoginRequest.java
+│   │   │           │   │   ├── RegisterRequest.java
+│   │   │           │   │   └── UpdateProfileRequest.java
+│   │   │           │   └── response/
+│   │   │           │       ├── AuthResponse.java
+│   │   │           │       ├── ContactResponse.java
+│   │   │           │       ├── ImportResult.java
+│   │   │           │       ├── LoginResponse.java
+│   │   │           │       └── UserProfileResponse.java
+│   │   │           ├── entity/
+│   │   │           │   ├── Contact.java
+│   │   │           │   ├── ContactEmail.java
+│   │   │           │   ├── ContactPhone.java
+│   │   │           │   └── User.java
+│   │   │           ├── exception/
+│   │   │           │   ├── ContactNotFoundException.java
+│   │   │           │   ├── DuplicateResourceException.java
+│   │   │           │   ├── GlobalExceptionHandler.java
+│   │   │           │   └── InvalidCredentialsException.java
+│   │   │           ├── repository/
+│   │   │           │   ├── ContactRepository.java
+│   │   │           │   └── UserRepository.java
+│   │   │           ├── security/
+│   │   │           │   ├── CustomUserDetailsService.java
+│   │   │           │   ├── JwtAuthenticationFilter.java
+│   │   │           │   └── JwtTokenProvider.java
+│   │   │           ├── service/
+│   │   │           │   ├── AuthService.java
+│   │   │           │   ├── ContactService.java
+│   │   │           │   └── UserService.java
+│   │   │           └── util/
+│   │   │               └── QueryUtils.java
 │   │   └── resources/
+│   │       ├── application.properties
+│   │       └── logback-spring.xml
 │   └── test/
-│       └── java/com/contactmanagement/
-│           ├── controller/
-│           ├── repository/
-│           └── service/
+│       └── java/
+│           └── com/
+│               └── contactmanagement/
+│                   ├── controller/
+│                   │   ├── AuthControllerTest.java
+│                   │   ├── ContactControllerTest.java
+│                   │   └── UserControllerTest.java
+│                   ├── repository/
+│                   │   ├── ContactRepositoryTest.java
+│                   │   └── UserRepositoryTest.java
+│                   └── service/
+│                       ├── AuthServiceTest.java
+│                       ├── ContactServiceTest.java
+│                       └── UserServiceTest.java
 ├── pom.xml
 └── sonar-project.properties
 

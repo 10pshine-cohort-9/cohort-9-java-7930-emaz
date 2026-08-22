@@ -59,6 +59,7 @@ const ContactsPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
+  const importModalRef = useRef(null);
 
   // Refs for modal focus
   const addModalRef = useRef(null);
@@ -479,6 +480,10 @@ const ContactsPage = () => {
   };
 
   const closeImportModal = () => {
+    if (importing) {
+      showToastMessage("Import in progress, please wait...", "warning");
+      return;
+    }
     setShowImportModal(false);
     setSelectedFile(null);
     setImporting(false);
@@ -1827,9 +1832,6 @@ const ContactsPage = () => {
       )}
 
       {/* ============================================ */}
-      {/* IMPORT CONTACT MODAL - MOVED HERE */}
-      {/* ============================================ */}
-      {/* ============================================ */}
       {/* IMPORT CONTACT MODAL */}
       {/* ============================================ */}
       {showImportModal && (
@@ -1842,15 +1844,22 @@ const ContactsPage = () => {
             zIndex: 1050,
             backgroundColor: "rgba(0,0,0,0.7)",
             backdropFilter: "blur(4px)",
+            cursor: importing ? "wait" : "default",
           }}
-          onClick={closeImportModal}
+          onClick={importing ? undefined : closeImportModal}
           onKeyDown={(e) => {
-            if (e.key === "Escape") closeImportModal();
+            if (e.key === "Escape" && !importing) closeImportModal();
           }}
         >
           <div
             className="bg-dark rounded-4 border border-secondary p-4"
-            style={{ maxWidth: "500px", width: "100%", margin: "16px" }}
+            style={{
+              maxWidth: "500px",
+              width: "100%",
+              margin: "16px",
+              opacity: importing ? 0.7 : 1,
+              pointerEvents: importing ? "none" : "auto",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -1903,7 +1912,18 @@ const ContactsPage = () => {
                 onClick={handleImport}
                 disabled={!selectedFile || importing}
               >
-                {importing ? "Importing..." : "Import Contacts"}
+                {importing ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    Importing...
+                  </>
+                ) : (
+                  "Import Contacts"
+                )}
               </button>
             </div>
           </div>

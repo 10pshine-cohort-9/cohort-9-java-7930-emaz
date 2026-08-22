@@ -229,15 +229,15 @@ public class ContactService {
 
         StringBuilder csv = new StringBuilder();
 
-        csv.append("First Name,Last Name,Title,Emails,Phones\n");
+        // Header with all fields
+        csv.append("First Name,Last Name,Title,Email (Label:Value),Phone (Label:Value)\n");
 
         for (Contact contact : contacts) {
-            // Collect all emails
+            // Format: label:value; label:value
             String emails = contact.getEmails().stream()
                     .map(e -> e.getLabel() + ":" + e.getValue())
                     .collect(Collectors.joining("; "));
 
-            // Collect all phones
             String phones = contact.getPhones().stream()
                     .map(p -> p.getLabel() + ":" + p.getValue())
                     .collect(Collectors.joining("; "));
@@ -255,7 +255,13 @@ public class ContactService {
 
     private String escapeCSV(String value) {
         if (value == null) return "";
-        // If value contains comma, quotes, or newline, wrap in quotes
+
+        String trimmed = value.trim();
+        if (trimmed.startsWith("=") || trimmed.startsWith("+") ||
+                trimmed.startsWith("-") || trimmed.startsWith("@")) {
+            value = "'" + value;
+        }
+
         if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
@@ -271,55 +277,65 @@ public class ContactService {
         int failureCount = 0;
         List<String> errors = new ArrayList<>();
 
-        try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
-            String line = reader.readLine(); // Skip header
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            String line = reader.readLine();
 
+            int rowNumber = 1;
             while ((line = reader.readLine()) != null) {
+                rowNumber++;
                 try {
                     String[] fields = parseCSVLine(line);
                     if (fields.length < 5) {
-                        errors.add("Invalid row: " + line);
+                        errors.add("Row " + rowNumber + ": Invalid format (expected 5 columns)");
                         failureCount++;
                         continue;
                     }
 
-                    // Create contact
                     Contact contact = new Contact();
                     contact.setFirstName(fields[0].trim());
                     contact.setLastName(fields[1].trim());
                     contact.setTitle(fields[2].trim());
                     contact.setUser(user);
 
-                    // Add email
+                    // Parse emails: label:value; label:value
                     if (!fields[3].trim().isEmpty()) {
-                        ContactEmail email = new ContactEmail();
-                        email.setLabel("work");
-                        email.setValue(fields[3].trim());
-                        email.setContact(contact);
-                        contact.getEmails().add(email);
+                        String[] emailParts = fields[3].split(";");
+                        for (String part : emailParts) {
+                            String[] kv = part.trim().split(":", 2);
+                            if (kv.length == 2) {
+                                ContactEmail email = new ContactEmail();
+                                email.setLabel(kv[0].trim());
+                                email.setValue(kv[1].trim());
+                                email.setContact(contact);
+                                contact.getEmails().add(email);
+                            }
+                        }
                     }
 
-                    // Add phone
+                    // Parse phones: label:value; label:value
                     if (!fields[4].trim().isEmpty()) {
-                        ContactPhone phone = new ContactPhone();
-                        phone.setLabel("work");
-                        phone.setValue(fields[4].trim());
-                        phone.setContact(contact);
-                        contact.getPhones().add(phone);
+                        String[] phoneParts = fields[4].split(";");
+                        for (String part : phoneParts) {
+                            String[] kv = part.trim().split(":", 2);
+                            if (kv.length == 2) {
+                                ContactPhone phone = new ContactPhone();
+                                phone.setLabel(kv[0].trim());
+                                phone.setValue(kv[1].trim());
+                                phone.setContact(contact);
+                                contact.getPhones().add(phone);
+                            }
+                        }
                     }
 
                     contactRepository.save(contact);
                     successCount++;
 
                 } catch (Exception e) {
-                    log.error("Failed to import row: {}", line, e);
-                    errors.add("Failed to import: " + line);
+                    log.error("Failed to import row {}: {}", rowNumber, e.getMessage());
+                    errors.add("Row " + rowNumber + ": " + e.getMessage());
                     failureCount++;
                 }
             }
-
-            reader.close();
 
         } catch (Exception e) {
             log.error("Failed to import contacts", e);

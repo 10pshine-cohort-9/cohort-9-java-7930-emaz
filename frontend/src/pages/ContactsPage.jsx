@@ -454,11 +454,7 @@ const ContactsPage = () => {
         data.failureCount > 0 ? "warning" : "success",
       );
 
-      setShowImportModal(false);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      closeImportModal();
       fetchContacts();
     } catch (err) {
       showToastMessage(
@@ -479,6 +475,15 @@ const ContactsPage = () => {
         return;
       }
       setSelectedFile(file);
+    }
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+    setSelectedFile(null);
+    setImporting(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -1824,6 +1829,9 @@ const ContactsPage = () => {
       {/* ============================================ */}
       {/* IMPORT CONTACT MODAL - MOVED HERE */}
       {/* ============================================ */}
+      {/* ============================================ */}
+      {/* IMPORT CONTACT MODAL */}
+      {/* ============================================ */}
       {showImportModal && (
         <div
           role="dialog"
@@ -1835,9 +1843,9 @@ const ContactsPage = () => {
             backgroundColor: "rgba(0,0,0,0.7)",
             backdropFilter: "blur(4px)",
           }}
-          onClick={() => setShowImportModal(false)}
+          onClick={closeImportModal}
           onKeyDown={(e) => {
-            if (e.key === "Escape") setShowImportModal(false);
+            if (e.key === "Escape") closeImportModal();
           }}
         >
           <div
@@ -1851,7 +1859,7 @@ const ContactsPage = () => {
               </h5>
               <button
                 className="btn btn-sm btn-outline-secondary border-0 text-secondary"
-                onClick={() => setShowImportModal(false)}
+                onClick={closeImportModal}
               >
                 <X size={20} />
               </button>
@@ -1885,7 +1893,7 @@ const ContactsPage = () => {
               <button
                 type="button"
                 className="btn btn-outline-secondary"
-                onClick={() => setShowImportModal(false)}
+                onClick={closeImportModal}
               >
                 Cancel
               </button>
@@ -1901,7 +1909,6 @@ const ContactsPage = () => {
           </div>
         </div>
       )}
-
       {/* ============================================ */}
       {/* LOGOUT CONFIRMATION MODAL */}
       {/* ============================================ */}

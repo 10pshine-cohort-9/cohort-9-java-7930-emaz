@@ -107,3 +107,8 @@
 2026-08-22 14:19:34 [http-nio-8081-exec-10] INFO  c.c.controller.ContactController - Received request to export contacts
 2026-08-22 14:19:34 [http-nio-8081-exec-10] INFO  c.c.service.ContactService - Exporting contacts to CSV for current user
 2026-08-22 14:19:34 [http-nio-8081-exec-10] INFO  c.c.service.ContactService - Exported 22 contacts to CSV
+2026-08-22 16:56:47 [SpringApplicationShutdownHook] INFO  o.s.b.w.e.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-08-22 16:56:47 [tomcat-shutdown] INFO  o.s.b.w.e.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-08-22 16:56:47 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-08-22 16:56:47 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-08-22 16:56:47 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

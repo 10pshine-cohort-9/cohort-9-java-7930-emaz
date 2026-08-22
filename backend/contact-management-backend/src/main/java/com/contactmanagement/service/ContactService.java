@@ -300,30 +300,54 @@ public class ContactService {
                     // Parse emails: label:value; label:value
                     if (!fields[3].trim().isEmpty()) {
                         String[] emailParts = fields[3].split(";");
+                        boolean hasValidEmail = false;
                         for (String part : emailParts) {
-                            String[] kv = part.trim().split(":", 2);
-                            if (kv.length == 2) {
+                            String trimmedPart = part.trim();
+                            if (trimmedPart.isEmpty()) {
+                                continue;
+                            }
+                            String[] kv = trimmedPart.split(":", 2);
+                            if (kv.length == 2 && !kv[0].trim().isEmpty() && !kv[1].trim().isEmpty()) {
                                 ContactEmail email = new ContactEmail();
                                 email.setLabel(kv[0].trim());
                                 email.setValue(kv[1].trim());
                                 email.setContact(contact);
                                 contact.getEmails().add(email);
+                                hasValidEmail = true;
+                            } else {
+                                // Malformed entry - reject the whole row
+                                throw new IllegalArgumentException("Malformed email format: '" + trimmedPart + "'. Expected format: label:value");
                             }
+                        }
+                        if (!hasValidEmail) {
+                            throw new IllegalArgumentException("No valid email entries found");
                         }
                     }
 
                     // Parse phones: label:value; label:value
                     if (!fields[4].trim().isEmpty()) {
                         String[] phoneParts = fields[4].split(";");
+                        boolean hasValidPhone = false;
                         for (String part : phoneParts) {
-                            String[] kv = part.trim().split(":", 2);
-                            if (kv.length == 2) {
+                            String trimmedPart = part.trim();
+                            if (trimmedPart.isEmpty()) {
+                                continue;
+                            }
+                            String[] kv = trimmedPart.split(":", 2);
+                            if (kv.length == 2 && !kv[0].trim().isEmpty() && !kv[1].trim().isEmpty()) {
                                 ContactPhone phone = new ContactPhone();
                                 phone.setLabel(kv[0].trim());
                                 phone.setValue(kv[1].trim());
                                 phone.setContact(contact);
                                 contact.getPhones().add(phone);
+                                hasValidPhone = true;
+                            } else {
+                                // Malformed entry - reject the whole row
+                                throw new IllegalArgumentException("Malformed phone format: '" + trimmedPart + "'. Expected format: label:value");
                             }
+                        }
+                        if (!hasValidPhone) {
+                            throw new IllegalArgumentException("No valid phone entries found");
                         }
                     }
 
